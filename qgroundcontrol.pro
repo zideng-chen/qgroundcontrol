@@ -496,6 +496,8 @@ HEADERS += \
     src/JsonHelper.h \
     src/LogCompressor.h \
     src/MG.h \
+    src/MissionManager/AirMapController.h \
+    src/MissionManager/AirMapManager.h \
     src/MissionManager/CameraSection.h \
     src/MissionManager/ComplexMissionItem.h \
     src/MissionManager/FixedWingLandingComplexItem.h \
@@ -683,6 +685,8 @@ SOURCES += \
     src/Joystick/JoystickManager.cc \
     src/JsonHelper.cc \
     src/LogCompressor.cc \
+    src/MissionManager/AirMapController.cc \
+    src/MissionManager/AirMapManager.cc \
     src/MissionManager/CameraSection.cc \
     src/MissionManager/ComplexMissionItem.cc \
     src/MissionManager/FixedWingLandingComplexItem.cc \
