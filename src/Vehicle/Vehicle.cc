@@ -237,6 +237,8 @@ Vehicle::Vehicle(LinkInterface*             link,
 
     _mapTrajectoryTimer.setInterval(_mapTrajectoryMsecsBetweenPoints);
     connect(&_mapTrajectoryTimer, &QTimer::timeout, this, &Vehicle::_addNewMapTrajectoryPoint);
+
+    connect(qgcApp()->toolbox()->airMapManager(), &AirMapManager::trafficUpdate, this, &Vehicle::_trafficUpdate);
 }
 
 // Disconnected Vehicle for offline editing
@@ -2831,6 +2833,20 @@ void Vehicle::sendPlan(QString planFile)
     PlanMasterController::sendPlanToVehicle(this, planFile);
 }
 
+void Vehicle::_trafficUpdate(QString traffic_id, QString vehicle_id, QGeoCoordinate location, float heading)
+{
+    // qDebug() << "traffic update:" << traffic_id << vehicle_id << heading << location;
+    // TODO: filter based on minimum altitude?
+    // TODO: remove a vehicle after a timeout?
+    if (_trafficVehicleMap.contains(traffic_id)) {
+        _trafficVehicleMap[traffic_id]->update(location, heading);
+    } else {
+        ADSBVehicle* vehicle = new ADSBVehicle(location, heading, this);
+        _trafficVehicleMap[traffic_id] = vehicle;
+        _adsbVehicles.append(vehicle);
+    }
+
+}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
