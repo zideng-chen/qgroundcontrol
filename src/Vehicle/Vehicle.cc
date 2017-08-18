@@ -32,6 +32,7 @@
 #include "QGCQGeoCoordinate.h"
 #include "QGCCorePlugin.h"
 #include "ADSBVehicle.h"
+#include "AirMapController.h"
 
 QGC_LOGGING_CATEGORY(VehicleLog, "VehicleLog")
 
@@ -128,6 +129,7 @@ Vehicle::Vehicle(LinkInterface*             link,
     , _rallyPointManager(NULL)
     , _rallyPointManagerInitialRequestSent(false)
     , _parameterManager(NULL)
+    , _airMapController(NULL)
     , _armed(false)
     , _base_mode(0)
     , _custom_mode(0)
@@ -238,6 +240,7 @@ Vehicle::Vehicle(LinkInterface*             link,
     _mapTrajectoryTimer.setInterval(_mapTrajectoryMsecsBetweenPoints);
     connect(&_mapTrajectoryTimer, &QTimer::timeout, this, &Vehicle::_addNewMapTrajectoryPoint);
 
+    _airMapController = new AirMapController(this);
     connect(qgcApp()->toolbox()->airMapManager(), &AirMapManager::trafficUpdate, this, &Vehicle::_trafficUpdate);
 }
 
@@ -296,6 +299,7 @@ Vehicle::Vehicle(MAV_AUTOPILOT              firmwareType,
     , _rallyPointManager(NULL)
     , _rallyPointManagerInitialRequestSent(false)
     , _parameterManager(NULL)
+    , _airMapController(NULL)
     , _armed(false)
     , _base_mode(0)
     , _custom_mode(0)
