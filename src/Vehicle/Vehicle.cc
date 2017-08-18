@@ -2835,6 +2835,7 @@ void Vehicle::sendPlan(QString planFile)
 
 void Vehicle::_trafficUpdate(QString traffic_id, QString vehicle_id, QGeoCoordinate location, float heading)
 {
+    Q_UNUSED(vehicle_id);
     // qDebug() << "traffic update:" << traffic_id << vehicle_id << heading << location;
     // TODO: filter based on minimum altitude?
     // TODO: remove a vehicle after a timeout?
