@@ -80,7 +80,7 @@
 #include "ParameterManager.h"
 #include "SettingsManager.h"
 #include "QGCCorePlugin.h"
-#include "AirMapController.h"
+#include "AirspaceController.h"
 
 #ifndef NO_SERIAL_LINK
 #include "SerialLink.h"
@@ -355,7 +355,7 @@ void QGCApplication::_initCommon(void)
     qmlRegisterUncreatableType<MissionItem>         ("QGroundControl.Vehicle",              1, 0, "MissionItem",            "Reference only");
     qmlRegisterUncreatableType<MissionManager>      ("QGroundControl.Vehicle",              1, 0, "MissionManager",         "Reference only");
     qmlRegisterUncreatableType<ParameterManager>    ("QGroundControl.Vehicle",              1, 0, "ParameterManager",       "Reference only");
-    qmlRegisterUncreatableType<AirMapController>    ("QGroundControl.Vehicle",              1, 0, "AirMapController",       "Reference only");
+    qmlRegisterUncreatableType<AirspaceController>  ("QGroundControl.Vehicle",              1, 0, "AirspaceController",       "Reference only");
     qmlRegisterUncreatableType<JoystickManager>     ("QGroundControl.JoystickManager",      1, 0, "JoystickManager",        "Reference only");
     qmlRegisterUncreatableType<Joystick>            ("QGroundControl.JoystickManager",      1, 0, "Joystick",               "Reference only");
     qmlRegisterUncreatableType<QGCPositionManager>  ("QGroundControl.QGCPositionManager",   1, 0, "QGCPositionManager",     "Reference only");
