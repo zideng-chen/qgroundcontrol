@@ -271,6 +271,7 @@ QList<MAV_CMD> PX4FirmwarePlugin::supportedMissionCommands(void)
          << MAV_CMD_DO_SET_CAM_TRIGG_DIST
          << MAV_CMD_DO_SET_SERVO
          << MAV_CMD_DO_CHANGE_SPEED
+         << MAV_CMD_DO_SET_HOME
          << MAV_CMD_DO_LAND_START
          << MAV_CMD_DO_SET_ROI
          << MAV_CMD_DO_MOUNT_CONFIGURE
