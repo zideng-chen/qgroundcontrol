@@ -71,6 +71,15 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+#=============================================================================
+# ccache
+#
+option(CCACHE "Use ccache if available" ON)
+find_program(CCACHE_PROGRAM ccache)
+if (CCACHE AND CCACHE_PROGRAM AND NOT DEFINED ENV{CCACHE_DISABLE})
+	set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+endif()
+
 find_package(Qt5 ${QT_VERSION}
 	COMPONENTS
 		Bluetooth
