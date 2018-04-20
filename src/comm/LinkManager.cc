@@ -20,6 +20,7 @@
 #include "QGCApplication.h"
 #include "UDPLink.h"
 #include "TCPLink.h"
+#include "MQTTLink.h"
 #include "SettingsManager.h"
 #ifdef QGC_ENABLE_BLUETOOTH
 #include "BluetoothLink.h"

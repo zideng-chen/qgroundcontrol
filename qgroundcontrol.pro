@@ -226,7 +226,8 @@ QT += \
     svg \
     widgets \
     xml \
-    texttospeech
+    texttospeech \
+    mqtt
 
 # Multimedia only used if QVC is enabled
 !contains (DEFINES, QGC_DISABLE_UVC) {
@@ -598,6 +599,7 @@ HEADERS += \
     src/comm/ProtocolInterface.h \
     src/comm/QGCMAVLink.h \
     src/comm/TCPLink.h \
+    src/comm/MQTTLink.h \
     src/comm/UDPLink.h \
     src/uas/UAS.h \
     src/uas/UASInterface.h \
@@ -789,6 +791,7 @@ SOURCES += \
     src/comm/LinkManager.cc \
     src/comm/MAVLinkProtocol.cc \
     src/comm/QGCMAVLink.cc \
+    src/comm/MQTTLink.cc \
     src/comm/TCPLink.cc \
     src/comm/UDPLink.cc \
     src/main.cc \

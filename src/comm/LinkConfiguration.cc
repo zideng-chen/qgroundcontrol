@@ -20,6 +20,7 @@
 #endif
 #include "UDPLink.h"
 #include "TCPLink.h"
+#include "MQTTLink.h"
 #if !defined(__mobile__)
 #include "LogReplayLink.h"
 #endif
