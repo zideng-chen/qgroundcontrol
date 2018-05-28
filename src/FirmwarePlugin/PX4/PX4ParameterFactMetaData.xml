@@ -7498,13 +7498,14 @@ the setpoint will be capped to MPC_XY_VEL_MAX</short_desc>
     </parameter>
   </group>
   <group name="Return To Land">
-    <parameter default="0" name="RTL_LAND_TYPE" type="INT32">
-      <short_desc>RTL land location</short_desc>
-      <long_desc>Land at the home location or planned mission landing</long_desc>
+    <parameter default="0" name="RTL_TYPE" type="INT32">
+      <short_desc>Return type</short_desc>
+      <long_desc>Fly straight to the home location or planned mission landing and land there or use the planned mission to get to those points.</long_desc>
       <scope>modules/navigator</scope>
       <values>
-        <value code="0">Home Position</value>
-        <value code="1">Planned Landing (Mission)</value>
+        <value code="0">Return home via direct path</value>
+        <value code="1">Return to a planned mission landing, if available, via direct path, else return to home via direct path</value>
+        <value code="2">Return to a planned mission landing, if available, using the mission path, else return to home via the reverse mission path</value>
       </values>
     </parameter>
   </group>
