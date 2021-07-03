@@ -1,18 +1,14 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-
-/// @file
-///     @brief Setup View
-///     @author Don Gagne <don@thegagnes.com>
-
 import QtQuick          2.3
+import QtQuick.Window   2.2
 import QtQuick.Controls 1.2
 
 import QGroundControl               1.0
@@ -22,11 +18,11 @@ import QGroundControl.Controllers   1.0
 import QGroundControl.ScreenTools   1.0
 
 Rectangle {
-    id:     setupView
+    id:     _root
     color:  qgcPal.window
     z:      QGroundControl.zOrderTopMost
 
-    QGCPalette { id: qgcPal; colorGroupEnabled: true }
+    signal popout()
 
     ExclusiveGroup { id: setupButtonGroup }
 
@@ -42,10 +38,6 @@ Rectangle {
 
     LogDownloadController {
         id: logController
-	}
-
-    MavlinkConsoleController {
-        id: conController
     }
 
     QGCFlickable {
@@ -85,44 +77,24 @@ Rectangle {
                 }
             }
 
-            QGCLabel {
-                anchors.left:           parent.left
-                anchors.right:          parent.right
-                text:                   qsTr("Analyze")
-                wrapMode:               Text.WordWrap
-                horizontalAlignment:    Text.AlignHCenter
-                visible:                !ScreenTools.isShortScreen
-            }
-
             Repeater {
-                id: buttonRepeater
+                id:     buttonRepeater
+                model:  QGroundControl.corePlugin ? QGroundControl.corePlugin.analyzePages : []
 
-                model: ListModel {
-                    ListElement {
-                        buttonImage:        "/qmlimages/LogDownloadIcon"
-                        buttonText:         qsTr("Log Download")
-                        pageSource:         "LogDownloadPage.qml"
-                    }
-                    ListElement {
-                        buttonImage:        "/qmlimages/GeoTagIcon"
-                        buttonText:         qsTr("GeoTag Images")
-                        pageSource:         "GeoTagPage.qml"
-                    }
-                    ListElement {
-                        buttonImage:        "/qmlimages/MavlinkConsoleIcon"
-                        buttonText:         qsTr("Mavlink Console")
-                        pageSource:         "MavlinkConsolePage.qml"
-                    }
-                }
-
-                Component.onCompleted: itemAt(0).checked = true
+                Component.onCompleted:  itemAt(0).checked = true
 
                 SubMenuButton {
-                    imageResource:      buttonImage
+                    id:                 subMenu
+                    imageResource:      modelData.icon
                     setupIndicator:     false
                     exclusiveGroup:     setupButtonGroup
-                    text:               buttonText
-                    onClicked:          panelLoader.source = pageSource
+                    text:               modelData.title
+
+                    onClicked: {
+                        panelLoader.source  = modelData.url
+                        panelLoader.title   = modelData.title
+                        checked             = true
+                    }
                 }
             }
         }
@@ -151,5 +123,47 @@ Rectangle {
         anchors.top:            parent.top
         anchors.bottom:         parent.bottom
         source:                 "LogDownloadPage.qml"
+
+        property string title
+
+        Connections {
+            target: panelLoader.item
+            onPopout: {
+                var windowedPage = windowedAnalyzePage.createObject(mainWindow)
+                windowedPage.title = panelLoader.title
+                windowedPage.source = panelLoader.source
+                _root.popout()
+            }
+        }
+
+    }
+
+    Component {
+        id: windowedAnalyzePage
+
+        Window {
+            width:      ScreenTools.defaultFontPixelWidth  * 100
+            height:     ScreenTools.defaultFontPixelHeight * 40
+            visible:    true
+
+            property alias source: loader.source
+
+            Rectangle {
+                color:          QGroundControl.globalPalette.window
+                anchors.fill:   parent
+
+                Loader {
+                    id:             loader
+                    anchors.fill:   parent
+                    onLoaded:       item.popped = true
+                }
+            }
+
+            onClosing: {
+                visible = false
+                source = ""
+            }
+        }
+
     }
 }

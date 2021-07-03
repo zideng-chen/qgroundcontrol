@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -14,15 +14,13 @@
 QGC_LOGGING_CATEGORY(RallyPointManagerLog, "RallyPointManagerLog")
 
 RallyPointManager::RallyPointManager(Vehicle* vehicle)
-    : QObject(vehicle)
-    , _vehicle(vehicle)
-    , _planManager              (vehicle, MAV_MISSION_TYPE_RALLY)
+    : PlanManager(vehicle, MAV_MISSION_TYPE_RALLY)
 {
-    connect(&_planManager, &PlanManager::inProgressChanged,         this, &RallyPointManager::inProgressChanged);
-    connect(&_planManager, &PlanManager::error,                     this, &RallyPointManager::error);
-    connect(&_planManager, &PlanManager::removeAllComplete,         this, &RallyPointManager::removeAllComplete);
-    connect(&_planManager, &PlanManager::sendComplete,              this, &RallyPointManager::sendComplete);
-    connect(&_planManager, &PlanManager::newMissionItemsAvailable,  this, &RallyPointManager::_planManagerLoadComplete);
+    connect(this, &PlanManager::inProgressChanged,          this, &RallyPointManager::inProgressChanged);
+    connect(this, &PlanManager::error,                      this, &RallyPointManager::error);
+    connect(this, &PlanManager::removeAllComplete,          this, &RallyPointManager::removeAllComplete);
+    connect(this, &PlanManager::sendComplete,               this, &RallyPointManager::_sendComplete);
+    connect(this, &PlanManager::newMissionItemsAvailable,   this, &RallyPointManager::_planManagerLoadComplete);
 }
 
 
@@ -38,20 +36,19 @@ void RallyPointManager::_sendError(ErrorCode_t errorCode, const QString& errorMs
     emit error(errorCode, errorMsg);
 }
 
-void RallyPointManager::loadFromVehicle(void)
-{
-     _planManager.loadFromVehicle();
-}
-
 void RallyPointManager::sendToVehicle(const QList<QGeoCoordinate>& rgPoints)
 {
-    QList<MissionItem*> rallyItems;
+    _rgSendPoints.clear();
+    for (const QGeoCoordinate& rallyPoint: rgPoints) {
+        _rgSendPoints.append(rallyPoint);
+    }
 
+    QList<MissionItem*> rallyItems;
     for (int i=0; i<rgPoints.count(); i++) {
 
         MissionItem* item = new MissionItem(0,
                                             MAV_CMD_NAV_RALLY_POINT,
-                                            MAV_FRAME_GLOBAL,
+                                            MAV_FRAME_GLOBAL_RELATIVE_ALT,
                                             0, 0, 0, 0,                 // param 1-4 unused
                                             rgPoints[i].latitude(),
                                             rgPoints[i].longitude(),
@@ -63,12 +60,13 @@ void RallyPointManager::sendToVehicle(const QList<QGeoCoordinate>& rgPoints)
     }
 
     // Plan manager takes control of MissionItems, so no need to delete
-    _planManager.writeMissionItems(rallyItems);
+    writeMissionItems(rallyItems);
 }
 
 void RallyPointManager::removeAll(void)
 {
-    _planManager.removeAll();
+    _rgPoints.clear();
+    PlanManager::removeAll();
 }
 
 bool RallyPointManager::supported(void) const
@@ -82,7 +80,7 @@ void RallyPointManager::_planManagerLoadComplete(bool removeAllRequested)
 
     Q_UNUSED(removeAllRequested);
 
-    const QList<MissionItem*>& rallyItems = _planManager.missionItems();
+    const QList<MissionItem*>& rallyItems = missionItems();
 
     for (int i=0; i<rallyItems.count(); i++) {
         MissionItem* item = rallyItems[i];
@@ -91,8 +89,6 @@ void RallyPointManager::_planManagerLoadComplete(bool removeAllRequested)
 
         if (command == MAV_CMD_NAV_RALLY_POINT) {
             _rgPoints.append(QGeoCoordinate(item->param5(), item->param6(), item->param7()));
-
-
         } else {
             qCDebug(RallyPointManagerLog) << "RallyPointManager load: Unsupported command %1" << item->command();
             break;
@@ -100,5 +96,16 @@ void RallyPointManager::_planManagerLoadComplete(bool removeAllRequested)
     }
 
 
-    emit loadComplete(_rgPoints);
+    emit loadComplete();
+}
+
+void RallyPointManager::_sendComplete(bool error)
+{
+    if (error) {
+        _rgPoints.clear();
+    } else {
+        _rgPoints = _rgSendPoints;
+    }
+    _rgSendPoints.clear();
+    emit sendComplete(error);
 }

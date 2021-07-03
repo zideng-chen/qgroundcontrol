@@ -1,16 +1,14 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-
-import QtQuick          2.5
-import QtQuick.Controls 1.2
-import QtQuick.Layouts  1.2
+import QtQuick          2.11
+import QtQuick.Layouts  1.11
 
 import QGroundControl                       1.0
 import QGroundControl.Controls              1.0
@@ -20,10 +18,11 @@ import QGroundControl.Palette               1.0
 
 // Joystick Indicator
 Item {
+    id:             _root
     width:          joystickRow.width * 1.1
     anchors.top:    parent.top
     anchors.bottom: parent.bottom
-    visible:        activeVehicle ? activeVehicle.sub : false
+    visible:        globals.activeVehicle ? globals.activeVehicle.sub : false
 
 
     Component {
@@ -64,16 +63,10 @@ Item {
                     }
                     QGCLabel { text: qsTr("Enabled:") }
                     QGCLabel {
-                        text:  activeVehicle && activeVehicle.joystickEnabled ? "Yes" : "No"
-                        color: activeVehicle && activeVehicle.joystickEnabled ? qgcPal.buttonText : "red"
+                        text:  globals.activeVehicle && globals.activeVehicle.joystickEnabled ? "Yes" : "No"
+                        color: globals.activeVehicle && globals.activeVehicle.joystickEnabled ? qgcPal.buttonText : "red"
                     }
                 }
-            }
-
-            Component.onCompleted: {
-                var pos = mapFromItem(toolBar, centerX - (width / 2), toolBar.height)
-                x = pos.x
-                y = pos.y + ScreenTools.defaultFontPixelHeight
             }
         }
     }
@@ -91,12 +84,14 @@ Item {
             sourceSize.height:  height
             source:             "/qmlimages/Joystick.png"
             fillMode:           Image.PreserveAspectFit
-            color:              activeVehicle && activeVehicle.joystickEnabled && joystickManager.activeJoystick ? qgcPal.buttonText : "red"
+            color:              globals.activeVehicle && globals.activeVehicle.joystickEnabled && joystickManager.activeJoystick ? qgcPal.buttonText : "red"
         }
     }
 
     MouseArea {
         anchors.fill:   parent
-        onClicked:      mainWindow.showPopUp(joystickInfo, mapToItem(toolBar, x, y).x + (width / 2))
+        onClicked: {
+            mainWindow.showIndicatorPopup(_root, joystickInfo)
+        }
     }
 }

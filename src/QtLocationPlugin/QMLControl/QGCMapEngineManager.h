@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -9,7 +9,7 @@
 
 
 /// @file
-///     @author Gus Grubba <mavlink@grubba.com>
+///     @author Gus Grubba <gus@auterion.com>
 
 #ifndef OfflineMapsManager_H
 #define OfflineMapsManager_H
@@ -35,18 +35,15 @@ public:
         ActionExporting,
         ActionDone,
     };
-    Q_ENUMS(ImportAction)
+    Q_ENUM(ImportAction)
 
-    Q_PROPERTY(int                  tileX0          READ    tileX0          NOTIFY tileX0Changed)
-    Q_PROPERTY(int                  tileX1          READ    tileX1          NOTIFY tileX1Changed)
-    Q_PROPERTY(int                  tileY0          READ    tileY0          NOTIFY tileY0Changed)
-    Q_PROPERTY(int                  tileY1          READ    tileY1          NOTIFY tileY1Changed)
     Q_PROPERTY(quint64              tileCount       READ    tileCount       NOTIFY tileCountChanged)
     Q_PROPERTY(QString              tileCountStr    READ    tileCountStr    NOTIFY tileCountChanged)
     Q_PROPERTY(quint64              tileSize        READ    tileSize        NOTIFY tileSizeChanged)
     Q_PROPERTY(QString              tileSizeStr     READ    tileSizeStr     NOTIFY tileSizeChanged)
     Q_PROPERTY(QmlObjectListModel*  tileSets        READ    tileSets        NOTIFY tileSetsChanged)
     Q_PROPERTY(QStringList          mapList         READ    mapList         CONSTANT)
+    Q_PROPERTY(QStringList          mapProviderList READ    mapProviderList CONSTANT)
     Q_PROPERTY(quint32              maxMemCache     READ    maxMemCache     WRITE   setMaxMemCache  NOTIFY  maxMemCacheChanged)
     Q_PROPERTY(quint32              maxDiskCache    READ    maxDiskCache    WRITE   setMaxDiskCache NOTIFY  maxDiskCacheChanged)
     Q_PROPERTY(QString              errorMessage    READ    errorMessage    NOTIFY  errorMessageChanged)
@@ -76,26 +73,24 @@ public:
     Q_INVOKABLE bool                importSets              (QString path = QString());
     Q_INVOKABLE void                resetAction             ();
 
-    int                             tileX0                  () { return _totalSet.tileX0; }
-    int                             tileX1                  () { return _totalSet.tileX1; }
-    int                             tileY0                  () { return _totalSet.tileY0; }
-    int                             tileY1                  () { return _totalSet.tileY1; }
-    quint64                         tileCount               () { return _totalSet.tileCount; }
-    QString                         tileCountStr            ();
-    quint64                         tileSize                () { return _totalSet.tileSize; }
-    QString                         tileSizeStr             ();
+    quint64                         tileCount               () const{ return _imageSet.tileCount + _elevationSet.tileCount; }
+    QString                         tileCountStr            () const;
+    quint64                         tileSize                () const{ return _imageSet.tileSize + _elevationSet.tileSize; }
+    QString                         tileSizeStr             () const;
     QStringList                     mapList                 ();
+    QStringList                     mapProviderList         ();
+    Q_INVOKABLE QStringList         mapTypeList             (QString provider);
     QmlObjectListModel*             tileSets                () { return &_tileSets; }
     quint32                         maxMemCache             ();
     quint32                         maxDiskCache            ();
     QString                         errorMessage            () { return _errorMessage; }
-    bool                            fetchElevation          () { return _fetchElevation; }
-    quint64                         freeDiskSpace           () { return _freeDiskSpace; }
-    quint64                         diskSpace               () { return _diskSpace; }
+    bool                            fetchElevation          () const{ return _fetchElevation; }
+    quint64                         freeDiskSpace           () const{ return _freeDiskSpace; }
+    quint64                         diskSpace               () const{ return _diskSpace; }
     int                             selectedCount           ();
-    int                             actionProgress          () { return _actionProgress; }
+    int                             actionProgress          () const{ return _actionProgress; }
     ImportAction                    importAction            () { return _importAction; }
-    bool                            importReplace           () { return _importReplace; }
+    bool                            importReplace           () const{ return _importReplace; }
 
     void                            setMaxMemCache          (quint32 size);
     void                            setMaxDiskCache         (quint32 size);
@@ -108,10 +103,6 @@ public:
     void setToolbox(QGCToolbox *toolbox);
 
 signals:
-    void tileX0Changed          ();
-    void tileX1Changed          ();
-    void tileY0Changed          ();
-    void tileY1Changed          ();
     void tileCountChanged       ();
     void tileSizeChanged        ();
     void tileSetsChanged        ();
@@ -141,7 +132,8 @@ private:
     void _updateDiskFreeSpace   ();
 
 private:
-    QGCTileSet  _totalSet;
+    QGCTileSet  _imageSet;
+    QGCTileSet  _elevationSet;
     double      _topleftLat;
     double      _topleftLon;
     double      _bottomRightLat;

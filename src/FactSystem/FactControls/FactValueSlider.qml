@@ -13,10 +13,11 @@ Rectangle {
     color:  qgcPal.textField
 
     property Fact   fact:               undefined
-    property int    digitCount:         4           ///< The number of digits to show for each value
+    property int    digitCount:         4           ///< The minimum number of digits to show for each value
     property int    incrementSlots:     1           ///< The number of visible slots to left/right of center value
 
-    property int    _totalDigitCount:       digitCount + 1 + fact.units.length
+    property int    _adjustedDigitCount:    Math.max(digitCount, _model.initialValueAtPrecision.toString().length)
+    property int    _totalDigitCount:       _adjustedDigitCount + 1 + fact.units.length
     property real   _margins:               (ScreenTools.implicitTextFieldHeight - ScreenTools.defaultFontPixelHeight) / 2
     property real   _increment:             fact.increment
     property real   _value:                 fact.value
@@ -70,7 +71,8 @@ Rectangle {
         id: editDialogComponent
 
         ParameterEditorDialog {
-            fact:           _fact
+            fact:       _fact
+            setFocus:   ScreenTools.isMobile ? false : true // Works around strange android bug where wrong virtual keyboard is displayed
         }
     }
 
@@ -95,7 +97,7 @@ Rectangle {
                 onClicked: {
                     valueListView.focus = true
                     if (_currentIndex === index) {
-                        qgcView.showDialog(editDialogComponent, qsTr("Value Details"), qgcView.showDialogDefaultWidth, StandardButton.Save | StandardButton.Cancel)
+                        mainWindow.showComponentDialog(editDialogComponent, qsTr("Value Details"), mainWindow.showDialogDefaultWidth, StandardButton.Save | StandardButton.Cancel)
                     } else {
                         _currentIndex = index
                         valueListView.positionViewAtIndex(_currentIndex, ListView.Center)

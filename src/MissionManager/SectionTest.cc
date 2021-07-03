@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -11,7 +11,7 @@
 #include "SurveyComplexItem.h"
 
 SectionTest::SectionTest(void)
-    : _simpleItem(NULL)
+    : _simpleItem(nullptr)
 {
     
 }
@@ -37,36 +37,21 @@ void SectionTest::init(void)
                             70.1234567,
                             true,           // autoContinue
                             false);         // isCurrentItem
-    _simpleItem = new SimpleMissionItem(_offlineVehicle, false /* flyView */, missionItem, this);
+    _simpleItem = new SimpleMissionItem(_masterController, false /* flyView */, missionItem);
 }
 
 void SectionTest::cleanup(void)
 {
-    delete _simpleItem;
+    _simpleItem->deleteLater();
     VisualMissionItemTest::cleanup();
 }
 
 void SectionTest::_createSpy(Section* section, MultiSignalSpy** sectionSpy)
 {
-    *sectionSpy = NULL;
+    *sectionSpy = nullptr;
     MultiSignalSpy* spy = new MultiSignalSpy();
     QCOMPARE(spy->init(section, rgSectionSignals, cSectionSignals), true);
     *sectionSpy = spy;
-}
-
-void SectionTest::_missionItemsEqual(MissionItem& actual, MissionItem& expected)
-{
-    QCOMPARE(actual.command(),      expected.command());
-    QCOMPARE(actual.frame(),        expected.frame());
-    QCOMPARE(actual.autoContinue(), expected.autoContinue());
-
-    QVERIFY(UnitTest::doubleNaNCompare(actual.param1(), expected.param1()));
-    QVERIFY(UnitTest::doubleNaNCompare(actual.param2(), expected.param2()));
-    QVERIFY(UnitTest::doubleNaNCompare(actual.param3(), expected.param3()));
-    QVERIFY(UnitTest::doubleNaNCompare(actual.param4(), expected.param4()));
-    QVERIFY(UnitTest::doubleNaNCompare(actual.param5(), expected.param5()));
-    QVERIFY(UnitTest::doubleNaNCompare(actual.param6(), expected.param6()));
-    QVERIFY(UnitTest::doubleNaNCompare(actual.param7(), expected.param7()));
 }
 
 void SectionTest::_commonScanTest(Section* section)
@@ -77,13 +62,13 @@ void SectionTest::_commonScanTest(Section* section)
 
     QmlObjectListModel waypointVisualItems;
     MissionItem waypointItem(0, MAV_CMD_NAV_WAYPOINT, MAV_FRAME_GLOBAL_RELATIVE_ALT, 0, 0, 0, 0, 0, 0, 0, true, false);
-    SimpleMissionItem simpleItem(_offlineVehicle, false /* flyView */, waypointItem, this);
+    SimpleMissionItem simpleItem(_masterController, false /* flyView */, waypointItem);
     waypointVisualItems.append(&simpleItem);
     waypointVisualItems.append(&simpleItem);
     waypointVisualItems.append(&simpleItem);
 
     QmlObjectListModel complexVisualItems;
-    SurveyComplexItem surveyItem(_offlineVehicle, false /* fly View */, this);
+    SurveyComplexItem surveyItem(_masterController, false /* fly View */, QString() /* kmlFile */);
     complexVisualItems.append(&surveyItem);
 
     // This tests the common cases which should not lead to scan succeess

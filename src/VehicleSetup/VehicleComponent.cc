@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -54,7 +54,7 @@ void VehicleComponent::addSummaryQmlComponent(QQmlContext* context, QQuickItem* 
 void VehicleComponent::setupTriggerSignals(void)
 {
     // Watch for changed on trigger list params
-    foreach (const QString &paramName, setupCompleteChangedTriggerList()) {
+    for (const QString &paramName: setupCompleteChangedTriggerList()) {
         if (_vehicle->parameterManager()->parameterExists(FactSystem::defaultComponentId, paramName)) {
             Fact* fact = _vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, paramName);
             connect(fact, &Fact::valueChanged, this, &VehicleComponent::_triggerUpdated);

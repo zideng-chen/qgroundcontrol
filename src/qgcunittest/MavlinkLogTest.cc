@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -14,7 +14,6 @@
 ///     @author Don Gagne <don@thegagnes.com>
 
 #include "MavlinkLogTest.h"
-#include "MainWindow.h"
 #include "MockLink.h"
 #include "QGCTemporaryFile.h"
 #include "QGCApplication.h"
@@ -38,7 +37,7 @@ void MavlinkLogTest::init(void)
     // Make sure temp directory is clear of mavlink logs
     QDir tmpDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation));
     QStringList logFiles(tmpDir.entryList(QStringList(QString("*.%1").arg(_logFileExtension)), QDir::Files));
-    foreach(const QString &logFile, logFiles) {
+    for(const QString &logFile: logFiles) {
         bool success = tmpDir.remove(logFile);
         Q_UNUSED(success);
         Q_ASSERT(success);
@@ -127,7 +126,7 @@ void MavlinkLogTest::_connectLogWorker(bool arm)
     QDir logSaveDir;
     
     if (arm) {
-        qgcApp()->toolbox()->multiVehicleManager()->activeVehicle()->setArmed(true);
+        qgcApp()->toolbox()->multiVehicleManager()->activeVehicle()->setArmedShowError(true);
         QTest::qWait(500); // Wait long enough for heartbeat to come through
         
         // On Disconnect: We should get a getSaveFileName dialog.

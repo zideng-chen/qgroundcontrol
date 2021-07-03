@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -23,10 +23,12 @@ Item {
     id: _root
 
     property var map        ///< Map control to place item in
-    property var qgcView    ///< QGCView to use for popping dialogs
+    property var vehicle    ///< Vehicle associated with this item
+    property bool interactive: true
 
     property var    _missionItem:       object
     property var    _itemVisual
+    property var    _loiterVisual
     property var    _dragArea
     property bool   _itemVisualShowing: false
     property bool   _dragAreaShowing:   false
@@ -36,6 +38,7 @@ Item {
     function hideItemVisuals() {
         if (_itemVisualShowing) {
             _itemVisual.destroy()
+            _loiterVisual.destroy()
             _itemVisualShowing = false
         }
     }
@@ -44,6 +47,8 @@ Item {
         if (!_itemVisualShowing) {
             _itemVisual = indicatorComponent.createObject(map)
             map.addMapItem(_itemVisual)
+            _loiterVisual = loiterComponent.createObject(map)
+            map.addMapItem(_loiterVisual)
             _itemVisualShowing = true
         }
     }
@@ -56,17 +61,23 @@ Item {
     }
 
     function showDragArea() {
-        if (!_dragAreaShowing && _missionItem.specifiesCoordinate) {
+        if (!_dragAreaShowing) {
             _dragArea = dragAreaComponent.createObject(map)
             _dragAreaShowing = true
         }
     }
 
+    function updateDragArea() {
+        if (_missionItem.isCurrentItem && map.planView && _missionItem.specifiesCoordinate) {
+            showDragArea()
+        } else {
+            hideDragArea()
+        }
+    }
+
     Component.onCompleted: {
         showItemVisuals()
-        if (_missionItem.isCurrentItem && map.planView) {
-            showDragArea()
-        }
+        updateDragArea()
     }
 
     Component.onDestruction: {
@@ -78,12 +89,22 @@ Item {
     Connections {
         target: _missionItem
 
-        onIsCurrentItemChanged: {
-            if (_missionItem.isCurrentItem) {
-                showDragArea()
-            } else {
-                hideDragArea()
-            }
+        onIsCurrentItemChanged:         updateDragArea()
+        onSpecifiesCoordinateChanged:   updateDragArea()
+    }
+
+    Connections {
+        target: _missionItem.isSimpleItem ? _missionItem : null
+
+        onLoiterRadiusChanged: {
+            _loiterVisual.blockSignals = true
+            _loiterVisual.clockwiseRotation = _missionItem.loiterRadius>= 0
+            _loiterVisual.blockSignals = false
+            _loiterVisual.radius.rawValue = Math.abs(_missionItem.loiterRadius)
+        }
+
+        onCoordinateChanged: {
+            _loiterVisual.coordinate = _missionItem.coordinate
         }
     }
 
@@ -92,9 +113,10 @@ Item {
         id: dragAreaComponent
 
         MissionItemIndicatorDrag {
-            itemIndicator:  _itemVisual
-            itemCoordinate: _missionItem.coordinate
-
+            mapControl:              _root.map
+            itemIndicator:           _itemVisual
+            itemCoordinate:          _missionItem.coordinate
+            visible:                 _root.interactive
             onItemCoordinateChanged: _missionItem.coordinate = itemCoordinate
         }
     }
@@ -108,26 +130,49 @@ Item {
             z:              QGroundControl.zOrderMapItems
             missionItem:    _missionItem
             sequenceNumber: _missionItem.sequenceNumber
+            onClicked:      if(_root.interactive)  _root.clicked(_missionItem.sequenceNumber)
+            opacity:        _root.opacity
+        }
+    }
 
-            onClicked: _root.clicked(_missionItem.sequenceNumber)
+    Component  {
+        id: loiterComponent
 
-            // These are the non-coordinate child mission items attached to this item
-            Row {
-                anchors.top:    parent.top
-                anchors.left:   parent.right
+        MapQuickItem {
+            id:                               loiterMapQuickItem
+            coordinate:                       _root._missionItem.coordinate
+            visible:                          _root.interactive && _missionItem.isSimpleItem && _missionItem.showLoiterRadius
 
-                Repeater {
-                    model: _missionItem.childItems
+            property alias blockSignals:      loiterMapCircleVisuals.blockSignals
+            property alias radius:            _mapCircle.radius
+            property alias clockwiseRotation: _mapCircle.clockwiseRotation
 
-                    delegate: MissionItemIndexLabel {
-                        z:                      2
-                        label:                  object.abbreviation.length === 0 ? object.sequenceNumber : object.abbreviation.charAt(0)
-                        checked:                object.isCurrentItem
-                        child:                  true
-                        specifiesCoordinate:    false
+            onCoordinateChanged:              _mapCircle.center = coordinate
 
-                        onClicked: _root.clicked(object.sequenceNumber)
-                    }
+            sourceItem: QGCMapCircleVisuals {
+                id:                      loiterMapCircleVisuals
+                mapControl:              _root.map
+                mapCircle:               _mapCircle
+                centerDragHandleVisible: false
+                borderColor:             _missionItem.terrainCollision ? "red" : QGroundControl.globalPalette.mapMissionTrajectory
+
+                property bool blockSignals: false
+
+                function updateMissionItem() {
+                    _missionItem.loiterRadius = _mapCircle.clockwiseRotation ? _mapCircle.radius.rawValue : -_mapCircle.radius.rawValue
+                }
+
+                QGCMapCircle {
+                    id:                         _mapCircle
+                    center:                     loiterMapQuickItem.coordinate
+                    interactive:                _root.interactive && _missionItem.isCurrentItem && map.planView
+                    showRotation:               true
+                    onClockwiseRotationChanged: if(!blockSignals) loiterMapCircleVisuals.updateMissionItem()
+                }
+
+                Connections {
+                    target:            _mapCircle.radius
+                    onRawValueChanged: if(!blockSignals) loiterMapCircleVisuals.updateMissionItem()
                 }
             }
         }

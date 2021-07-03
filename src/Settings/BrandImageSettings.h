@@ -7,32 +7,20 @@
  *
  ****************************************************************************/
 
-#ifndef BrandImageSettings_H
-#define BrandImageSettings_H
+/// @file
+/// @brief Branding settings
+
+#pragma once
 
 #include "SettingsGroup.h"
 
+/// Simple branding. Allows to define icon to use on main toolbar.
 class BrandImageSettings : public SettingsGroup
 {
     Q_OBJECT
-
 public:
-    BrandImageSettings(QObject* parent = NULL);
-
-    Q_PROPERTY(Fact* userBrandImageIndoor       READ userBrandImageIndoor       CONSTANT)
-    Q_PROPERTY(Fact* userBrandImageOutdoor      READ userBrandImageOutdoor      CONSTANT)
-
-    Fact* userBrandImageIndoor      (void);
-    Fact* userBrandImageOutdoor     (void);
-
-    static const char* brandImageSettingsGroupName;
-
-    static const char* userBrandImageIndoorName;
-    static const char* userBrandImageOutdoorName;
-
-private:
-    SettingsFact* _userBrandImageIndoorFact;
-    SettingsFact* _userBrandImageOutdoorFact;
+    BrandImageSettings(QObject* parent = nullptr);
+    DEFINE_SETTING_NAME_GROUP()
+    DEFINE_SETTINGFACT(userBrandImageIndoor)
+    DEFINE_SETTINGFACT(userBrandImageOutdoor)
 };
-
-#endif

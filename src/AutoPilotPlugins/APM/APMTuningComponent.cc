@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -60,10 +60,10 @@ QUrl APMTuningComponent::setupSource(void) const
         case MAV_TYPE_HEXAROTOR:
         case MAV_TYPE_OCTOROTOR:
         case MAV_TYPE_TRICOPTER:
-            // Older firmwares do not have CH9_OPT, we don't support Tuning on older firmwares
-            if (_vehicle->parameterManager()->parameterExists(-1, QStringLiteral("CH9_OPT"))) {
-                qmlFile = QStringLiteral("qrc:/qml/APMTuningComponentCopter.qml");
-            }
+            qmlFile = QStringLiteral("qrc:/qml/APMTuningComponentCopter.qml");
+            break;
+        case MAV_TYPE_SUBMARINE:
+            qmlFile = QStringLiteral("qrc:/qml/APMTuningComponentSub.qml");
             break;
         default:
             // No tuning panel

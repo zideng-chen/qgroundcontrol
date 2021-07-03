@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -28,23 +28,20 @@ const size_t MissionItemTest::_cTestCases = sizeof(_rgTestCases)/sizeof(_rgTestC
 #endif
 
 MissionItemTest::MissionItemTest(void)
-    : _offlineVehicle(NULL)
+    : _masterController(nullptr)
 {
 }
 
 void MissionItemTest::init(void)
 {
     UnitTest::init();
-    _offlineVehicle = new Vehicle(MAV_AUTOPILOT_PX4,
-                                  MAV_TYPE_QUADROTOR,
-                                  qgcApp()->toolbox()->firmwarePluginManager(),
-                                  this);
-
+    _masterController = new PlanMasterController(this);
 }
 
 void MissionItemTest::cleanup(void)
 {
-    delete _offlineVehicle;
+    delete _masterController;
+    _masterController = nullptr;
     UnitTest::cleanup();
 }
 
@@ -164,11 +161,11 @@ void MissionItemTest::_testFactSignals(void)
     QSignalSpy commandSpy(&missionItem._commandFact, SIGNAL(valueChanged(QVariant)));
     missionItem.setCommand(MAV_CMD_NAV_WAYPOINT);
     QCOMPARE(commandSpy.count(), 0);
-    missionItem.setCommand(MAV_CMD_NAV_ALTITUDE_WAIT);
+    missionItem.setCommand(MAV_CMD_NAV_LAND);
     QCOMPARE(commandSpy.count(), 1);
     QList<QVariant> arguments = commandSpy.takeFirst();
     QCOMPARE(arguments.count(), 1);
-    QCOMPARE((MAV_CMD)arguments.at(0).toInt(), MAV_CMD_NAV_ALTITUDE_WAIT);
+    QCOMPARE((MAV_CMD)arguments.at(0).toInt(), MAV_CMD_NAV_LAND);
 
     // frame
     QSignalSpy frameSpy(&missionItem._frameFact, SIGNAL(valueChanged(QVariant)));
@@ -241,7 +238,7 @@ void MissionItemTest::_testFactSignals(void)
     QCOMPARE(arguments.at(0).toDouble(), 8.0);
 }
 
-void MissionItemTest::_checkExpectedMissionItem(const MissionItem& missionItem, bool allNaNs)
+void MissionItemTest::_checkExpectedMissionItem(const MissionItem& missionItem, bool allNaNs) const
 {
     QCOMPARE(missionItem.sequenceNumber(), _seq);
     QCOMPARE(missionItem.isCurrentItem(), false);
@@ -282,7 +279,7 @@ void MissionItemTest::_testSimpleLoadFromStream(void)
 {
     // We specifically test SimpleMissionItem loading as well since it has additional
     // signalling which can affect values.
-    SimpleMissionItem simpleMissionItem(_offlineVehicle, false /* flyView */, NULL);
+    SimpleMissionItem simpleMissionItem(_masterController, false /* flyView */, false /* forLoad */);
 
     QString testString("10\t0\t3\t80\t10\t20\t30\t40\t-10\t-20\t-30\t1\r\n");
     QTextStream testStream(&testString, QIODevice::ReadOnly);
@@ -301,7 +298,7 @@ void MissionItemTest::_testLoadFromJsonV1(void)
 
     QStringList removeKeys;
     removeKeys << MissionItem::_jsonParam1Key << MissionItem::_jsonParam2Key << MissionItem::_jsonParam3Key << MissionItem::_jsonParam4Key;
-    foreach (const QString& removeKey, removeKeys) {
+    for (const QString& removeKey: removeKeys) {
         QJsonObject badObject = jsonObject;
         badObject.remove(removeKey);
         QCOMPARE(missionItem.load(badObject, _seq, errorString), false);
@@ -329,7 +326,7 @@ void MissionItemTest::_testLoadFromJsonV2(void)
 
     QStringList removeKeys;
     removeKeys << MissionItem::_jsonCoordinateKey;
-    foreach(const QString& removeKey, removeKeys) {
+    for(const QString& removeKey: removeKeys) {
         QJsonObject badObject = jsonObject;
         badObject.remove(removeKey);
         QCOMPARE(missionItem.load(badObject, _seq, errorString), false);
@@ -399,7 +396,7 @@ void MissionItemTest::_testLoadFromJsonV3(void)
                   MissionItem::_jsonFrameKey <<
                   MissionItem::_jsonParamsKey <<
                   VisualMissionItem::jsonTypeKey;
-    foreach(const QString& removeKey, removeKeys) {
+    for(const QString& removeKey: removeKeys) {
         QJsonObject badObject = jsonObject;
         badObject.remove(removeKey);
         QCOMPARE(missionItem.load(badObject, _seq, errorString), false);
@@ -452,7 +449,7 @@ void MissionItemTest::_testSimpleLoadFromJson(void)
     // We specifically test SimpleMissionItem loading as well since it has additional
     // signalling which can affect values.
 
-    SimpleMissionItem simpleMissionItem(_offlineVehicle, false /* flyView */, NULL);
+    SimpleMissionItem simpleMissionItem(_masterController, false /* flyView */, false /* forLoad */);
     QString     errorString;
     QJsonArray  coordinateArray;
     QJsonObject jsonObject;

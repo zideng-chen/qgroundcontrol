@@ -55,39 +55,38 @@ QT_BEGIN_NAMESPACE
 #define BAD_PORT 0
 
 static const char kJniClassName[] {"org/mavlink/qgroundcontrol/QGCActivity"};
-static const char kJTag[] {"QGC_QSerialPort"};
 
-static void jniDeviceHasDisconnected(JNIEnv *envA, jobject thizA, jint userDataA)
+static void jniDeviceHasDisconnected(JNIEnv *envA, jobject thizA, jlong userDataA)
 {
     Q_UNUSED(envA);
     Q_UNUSED(thizA);
     if (userDataA != 0)
-        ((QSerialPortPrivate *)userDataA)->q_ptr->close();
+        (reinterpret_cast<QSerialPortPrivate*>(userDataA))->q_ptr->close();
 }
 
-static void jniDeviceNewData(JNIEnv *envA, jobject thizA, jint userDataA, jbyteArray dataA)
+static void jniDeviceNewData(JNIEnv *envA, jobject thizA, jlong userDataA, jbyteArray dataA)
 {
     Q_UNUSED(thizA);
     if (userDataA != 0)
     {
-        jbyte *bytesL = envA->GetByteArrayElements(dataA, NULL);
+        jbyte *bytesL = envA->GetByteArrayElements(dataA, nullptr);
         jsize lenL = envA->GetArrayLength(dataA);
-        ((QSerialPortPrivate *)userDataA)->newDataArrived((char *)bytesL, lenL);
+        (reinterpret_cast<QSerialPortPrivate*>(userDataA))->newDataArrived(reinterpret_cast<char*>(bytesL), lenL);
         envA->ReleaseByteArrayElements(dataA, bytesL, JNI_ABORT);
     }
 }
 
-static void jniDeviceException(JNIEnv *envA, jobject thizA, jint userDataA, jstring messageA)
+static void jniDeviceException(JNIEnv *envA, jobject thizA, jlong userDataA, jstring messageA)
 {
     Q_UNUSED(thizA);
     if(userDataA != 0)
     {
-        const char *stringL = envA->GetStringUTFChars(messageA, NULL);
+        const char *stringL = envA->GetStringUTFChars(messageA, nullptr);
         QString strL = QString::fromUtf8(stringL);
         envA->ReleaseStringUTFChars(messageA, stringL);
         if(envA->ExceptionCheck())
             envA->ExceptionClear();
-        ((QSerialPortPrivate *)userDataA)->exceptionArrived(strL);
+        (reinterpret_cast<QSerialPortPrivate*>(userDataA))->exceptionArrived(strL);
     }
 }
 
@@ -95,7 +94,7 @@ static void jniLogDebug(JNIEnv *envA, jobject thizA, jstring messageA)
 {
     Q_UNUSED(thizA);
 
-    const char *stringL = envA->GetStringUTFChars(messageA, NULL);
+    const char *stringL = envA->GetStringUTFChars(messageA, nullptr);
     QString logMessage = QString::fromUtf8(stringL);
     envA->ReleaseStringUTFChars(messageA, stringL);
     if (envA->ExceptionCheck())
@@ -107,7 +106,7 @@ static void jniLogWarning(JNIEnv *envA, jobject thizA, jstring messageA)
 {
     Q_UNUSED(thizA);
 
-    const char *stringL = envA->GetStringUTFChars(messageA, NULL);
+    const char *stringL = envA->GetStringUTFChars(messageA, nullptr);
     QString logMessage = QString::fromUtf8(stringL);
     envA->ReleaseStringUTFChars(messageA, stringL);
     if (envA->ExceptionCheck())
@@ -144,9 +143,9 @@ void QSerialPortPrivate::setNativeMethods(void)
 
     //  REGISTER THE C++ FUNCTION WITH JNI
     JNINativeMethod javaMethods[] {
-        {"nativeDeviceHasDisconnected", "(I)V",                     reinterpret_cast<void *>(jniDeviceHasDisconnected)},
-        {"nativeDeviceNewData",         "(I[B)V",                   reinterpret_cast<void *>(jniDeviceNewData)},
-        {"nativeDeviceException",       "(ILjava/lang/String;)V",   reinterpret_cast<void *>(jniDeviceException)},
+        {"nativeDeviceHasDisconnected", "(J)V",                     reinterpret_cast<void *>(jniDeviceHasDisconnected)},
+        {"nativeDeviceNewData",         "(J[B)V",                   reinterpret_cast<void *>(jniDeviceNewData)},
+        {"nativeDeviceException",       "(JLjava/lang/String;)V",   reinterpret_cast<void *>(jniDeviceException)},
         {"qgcLogDebug",                 "(Ljava/lang/String;)V",    reinterpret_cast<void *>(jniLogDebug)},
         {"qgcLogWarning",               "(Ljava/lang/String;)V",    reinterpret_cast<void *>(jniLogWarning)}
     };
@@ -187,17 +186,17 @@ bool QSerialPortPrivate::open(QIODevice::OpenMode mode)
     deviceId = QAndroidJniObject::callStaticMethod<jint>(
         kJniClassName,
         "open",
-        "(Landroid/content/Context;Ljava/lang/String;I)I",
+        "(Landroid/content/Context;Ljava/lang/String;J)I",
         QtAndroid::androidActivity().object(),
         jnameL.object<jstring>(),
-        (jint)this);
+        reinterpret_cast<jlong>(this));
     cleanJavaException();
 
     isReadStopped = false;
 
     if (deviceId == BAD_PORT)
     {
-        qWarning() << "Error opening %s" << systemLocation.toLatin1().data();
+        qWarning() << "Error opening" << systemLocation.toLatin1().data();
         q_ptr->setError(QSerialPort::DeviceNotFoundError);
         return false;
     }
@@ -395,7 +394,7 @@ void QSerialPortPrivate::startWriting()
 
 bool QSerialPortPrivate::waitForReadyRead(int msecs)
 {
-    int origL = readBuffer.size();
+    int origL = static_cast<int>(readBuffer.size());
 
     if (origL > 0)
         return true;
@@ -528,7 +527,7 @@ void QSerialPortPrivate::newDataArrived(char *bytesA, int lengthA)
 
     // Always buffered, read data from the port into the read buffer
     if (readBufferMaxSize && (bytesToReadL > (readBufferMaxSize - readBuffer.size()))) {
-        bytesToReadL = readBufferMaxSize - readBuffer.size();
+        bytesToReadL = static_cast<int>(readBufferMaxSize - readBuffer.size());
         if (bytesToReadL <= 0) {
             // Buffer is full. User must read data from the buffer
             // before we can read more from the port.
@@ -538,7 +537,7 @@ void QSerialPortPrivate::newDataArrived(char *bytesA, int lengthA)
     }
 
     char *ptr = readBuffer.reserve(bytesToReadL);
-    memcpy(ptr, bytesA, bytesToReadL);
+    memcpy(ptr, bytesA, static_cast<size_t>(bytesToReadL));
 
     emit q->readyRead();
 }
@@ -617,8 +616,8 @@ qint64 QSerialPortPrivate::writeToPort(const char *data, qint64 maxSize)
     }
 
     QAndroidJniEnvironment jniEnv;
-    jbyteArray jarrayL = jniEnv->NewByteArray(maxSize);
-    jniEnv->SetByteArrayRegion(jarrayL, 0, maxSize, (jbyte *)data);
+    jbyteArray jarrayL = jniEnv->NewByteArray(static_cast<jsize>(maxSize));
+    jniEnv->SetByteArrayRegion(jarrayL, 0, static_cast<jsize>(maxSize), (jbyte*)data);
     if (jniEnv->ExceptionCheck())
         jniEnv->ExceptionClear();
     int resultL = QAndroidJniObject::callStaticMethod<jint>(
@@ -638,14 +637,6 @@ qint64 QSerialPortPrivate::writeToPort(const char *data, qint64 maxSize)
     }
     jniEnv->DeleteLocalRef(jarrayL);
     return resultL;
-}
-
-static inline bool evenParity(quint8 c)
-{
-    c ^= c >> 4;        //(c7 ^ c3)(c6 ^ c2)(c5 ^ c1)(c4 ^ c0)
-    c ^= c >> 2;        //[(c7 ^ c3)(c5 ^ c1)][(c6 ^ c2)(c4 ^ c0)]
-    c ^= c >> 1;
-    return c & 1;       //(c7 ^ c3)(c5 ^ c1)(c6 ^ c2)(c4 ^ c0)
 }
 
 typedef QMap<qint32, qint32> BaudRateMap;

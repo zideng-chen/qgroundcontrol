@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -11,7 +11,7 @@
 /**
  * @file
  *   @brief QGC Attitude Instrument
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  */
 
 import QtQuick              2.3
@@ -20,6 +20,7 @@ import QtGraphicalEffects   1.0
 import QGroundControl               1.0
 import QGroundControl.Controls      1.0
 import QGroundControl.ScreenTools   1.0
+import QGroundControl.Palette       1.0
 
 Item {
     id: root
@@ -34,6 +35,8 @@ Item {
 
     width:  size
     height: size
+
+    QGCPalette { id: qgcPal; colorGroupEnabled: enabled }
 
     Item {
         id:             instrument
@@ -115,8 +118,8 @@ Item {
         anchors.fill:   parent
         radius:         width / 2
         color:          Qt.rgba(0,0,0,0)
-        border.color:   "black"
-        border.width:   2
+        border.color:   qgcPal.text
+        border.width:   1
     }
 
     QGCLabel {

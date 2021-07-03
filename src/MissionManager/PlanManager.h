@@ -1,14 +1,13 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-#ifndef PlanManager_H
-#define PlanManager_H
+#pragma once
 
 #include <QObject>
 #include <QLoggingCategory>
@@ -20,6 +19,7 @@
 #include "LinkInterface.h"
 
 class Vehicle;
+class MissionCommandTree;
 
 Q_DECLARE_LOGGING_CATEGORY(PlanManagerLog)
 
@@ -60,10 +60,10 @@ public:
     typedef enum {
         InternalError,
         AckTimeoutError,        ///< Timed out waiting for response from vehicle
-        ProtocolOrderError,     ///< Incorrect protocol sequence from vehicle
+        ProtocolError,          ///< Incorrect protocol sequence from vehicle
         RequestRangeError,      ///< Vehicle requested item out of range
         ItemMismatchError,      ///< Vehicle returned item with seq # different than requested
-        VehicleError,           ///< Vehicle returned error
+        VehicleAckError,        ///< Vehicle returned error in ack
         MissingRequestsError,   ///< Vehicle did not request all items during write sequence
         MaxRetryExceeded,       ///< Retry failed
         MissionTypeMismatch,    ///< MAV_MISSION_TYPE does not match _planType
@@ -71,7 +71,7 @@ public:
 
     // These values are public so the unit test can set appropriate signal wait times
     // When passively waiting for a mission process, use a longer timeout.
-    static const int _ackTimeoutMilliseconds = 1000;
+    static const int _ackTimeoutMilliseconds = 1500;
     // When actively retrying to request mission items, use a shorter timeout instead.
     static const int _retryTimeoutMilliseconds = 250;
     static const int _maxRetryCount = 5;
@@ -113,8 +113,8 @@ protected:
     bool _checkForExpectedAck(AckType_t receivedAck);
     void _readTransactionComplete(void);
     void _handleMissionCount(const mavlink_message_t& message);
-    void _handleMissionItem(const mavlink_message_t& message, bool missionItemInt);
-    void _handleMissionRequest(const mavlink_message_t& message, bool missionItemInt);
+    void _handleMissionItem(const mavlink_message_t& message);
+    void _handleMissionRequest(const mavlink_message_t& message);
     void _handleMissionAck(const mavlink_message_t& message);
     void _requestNextMissionItem(void);
     void _clearMissionItems(void);
@@ -134,11 +134,11 @@ protected:
     QString _planTypeString(void);
 
 protected:
-    Vehicle*            _vehicle;
+    Vehicle*            _vehicle =              nullptr;
+    MissionCommandTree* _missionCommandTree =   nullptr;
     MAV_MISSION_TYPE    _planType;
-    LinkInterface*      _dedicatedLink;
 
-    QTimer*             _ackTimeoutTimer;
+    QTimer*             _ackTimeoutTimer =      nullptr;
     AckType_t           _expectedAck;
     int                 _retryCount;
 
@@ -153,6 +153,7 @@ protected:
     QList<MissionItem*> _writeMissionItems;     ///< Set of mission items currently being written to vehicle
     int                 _currentMissionIndex;
     int                 _lastCurrentIndex;
-};
 
-#endif
+private:
+    void _setTransactionInProgress(TransactionType_t type);
+};

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -12,7 +12,7 @@
  * @file
  *   @brief Map Tile Cache Worker Thread
  *
- *   @author Gus Grubba <mavlink@grubba.com>
+ *   @author Gus Grubba <gus@auterion.com>
  *
  */
 
@@ -54,6 +54,8 @@ private slots:
     void        _lookupReady            (QHostInfo info);
 
 private:
+    void        _runTask                (QGCMapTask* task);
+
     void        _saveTile               (QGCMapTask* mtask);
     void        _getTile                (QGCMapTask* mtask);
     void        _getTileSets            (QGCMapTask* mtask);
@@ -68,12 +70,15 @@ private:
     void        _importSets             (QGCMapTask* mtask);
     bool        _testTask               (QGCMapTask* mtask);
     void        _testInternet           ();
+    void        _deleteBingNoTileTiles  ();
 
     quint64     _findTile               (const QString hash);
     bool        _findTileSetID          (const QString name, quint64& setID);
     void        _updateSetTotals        (QGCCachedTileSet* set);
     bool        _init                   ();
-    bool        _createDB               (QSqlDatabase *db, bool createDefault = true);
+    bool        _connectDB              ();
+    bool        _createDB               (QSqlDatabase& db, bool createDefault = true);
+    void        _disconnectDB           ();
     quint64     _getDefaultTileSet      ();
     void        _updateTotals           ();
     void        _deleteTileSet          (qulonglong id);
@@ -83,22 +88,21 @@ signals:
     void        internetStatus          (bool active);
 
 private:
-    QQueue<QGCMapTask*>     _taskQueue;
-    QMutex                  _mutex;
-    QMutex                  _waitmutex;
-    QWaitCondition          _waitc;
-    QString                 _databasePath;
-    QSqlDatabase*           _db;
-    bool                    _valid;
-    bool                    _failed;
-    quint64                 _defaultSet;
-    quint64                 _totalSize;
-    quint32                 _totalCount;
-    quint64                 _defaultSize;
-    quint32                 _defaultCount;
-    time_t                  _lastUpdate;
-    int                     _updateTimeout;
-    int                     _hostLookupID;
+    QQueue<QGCMapTask*>             _taskQueue;
+    QMutex                          _taskQueueMutex;
+    QWaitCondition                  _waitc;
+    QString                         _databasePath;
+    QScopedPointer<QSqlDatabase>    _db;
+    std::atomic_bool                _valid;
+    bool                            _failed;
+    quint64                         _defaultSet;
+    quint64                         _totalSize;
+    quint32                         _totalCount;
+    quint64                         _defaultSize;
+    quint32                         _defaultCount;
+    time_t                          _lastUpdate;
+    int                             _updateTimeout;
+    int                             _hostLookupID;
 };
 
 #endif // QGC_TILE_CACHE_WORKER_H

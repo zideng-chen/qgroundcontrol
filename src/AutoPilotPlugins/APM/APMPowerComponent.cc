@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -32,25 +32,6 @@ QString APMPowerComponent::description(void) const
 QString APMPowerComponent::iconResource(void) const
 {
     return QStringLiteral("/qmlimages/PowerComponentIcon.png");
-}
-
-bool APMPowerComponent::requiresSetup(void) const
-{
-    return true;
-}
-
-bool APMPowerComponent::setupComplete(void) const
-{
-    return _vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, QStringLiteral("BATT_CAPACITY"))->rawValue().toInt() != 0;
-}
-
-QStringList APMPowerComponent::setupCompleteChangedTriggerList(void) const
-{
-    QStringList list;
-
-    list << QStringLiteral("BATT_CAPACITY");
-
-    return list;
 }
 
 QUrl APMPowerComponent::setupSource(void) const

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -12,6 +12,7 @@
 #include "JsonHelper.h"
 #include "QGCQGeoCoordinate.h"
 #include "QGCApplication.h"
+#include "KMLHelper.h"
 
 #include <QGeoRectangle>
 #include <QDebug>
@@ -26,6 +27,7 @@ QGCMapPolyline::QGCMapPolyline(QObject* parent)
     : QObject               (parent)
     , _dirty                (false)
     , _interactive          (false)
+    , _resetActive          (false)
 {
     _init();
 }
@@ -34,6 +36,7 @@ QGCMapPolyline::QGCMapPolyline(const QGCMapPolyline& other, QObject* parent)
     : QObject               (parent)
     , _dirty                (false)
     , _interactive          (false)
+    , _resetActive          (false)
 {
     *this = other;
 
@@ -58,6 +61,9 @@ void QGCMapPolyline::_init(void)
 {
     connect(&_polylineModel, &QmlObjectListModel::dirtyChanged, this, &QGCMapPolyline::_polylineModelDirtyChanged);
     connect(&_polylineModel, &QmlObjectListModel::countChanged, this, &QGCMapPolyline::_polylineModelCountChanged);
+
+    connect(this, &QGCMapPolyline::countChanged, this, &QGCMapPolyline::isValidChanged);
+    connect(this, &QGCMapPolyline::countChanged, this, &QGCMapPolyline::isEmptyChanged);
 }
 
 void QGCMapPolyline::clear(void)
@@ -117,28 +123,32 @@ QPointF QGCMapPolyline::_pointFFromCoord(const QGeoCoordinate& coordinate) const
 
 void QGCMapPolyline::setPath(const QList<QGeoCoordinate>& path)
 {
+    _beginResetIfNotActive();
+
     _polylinePath.clear();
     _polylineModel.clearAndDeleteContents();
-    foreach (const QGeoCoordinate& coord, path) {
+    for (const QGeoCoordinate& coord: path) {
         _polylinePath.append(QVariant::fromValue(coord));
         _polylineModel.append(new QGCQGeoCoordinate(coord, this));
     }
 
     setDirty(true);
-    emit pathChanged();
+
+    _endResetIfNotActive();
 }
 
 void QGCMapPolyline::setPath(const QVariantList& path)
 {
-    _polylinePath = path;
+    _beginResetIfNotActive();
 
+    _polylinePath = path;
     _polylineModel.clearAndDeleteContents();
     for (int i=0; i<_polylinePath.count(); i++) {
         _polylineModel.append(new QGCQGeoCoordinate(_polylinePath[i].value<QGeoCoordinate>(), this));
     }
-
     setDirty(true);
-    emit pathChanged();
+
+    _endResetIfNotActive();
 }
 
 
@@ -233,6 +243,11 @@ void QGCMapPolyline::removeVertex(int vertexIndex)
 
     QObject* coordObj = _polylineModel.removeAt(vertexIndex);
     coordObj->deleteLater();
+    if(vertexIndex == _selectedVertexIndex) {
+        selectVertex(-1);
+    } else if (vertexIndex < _selectedVertexIndex) {
+        selectVertex(_selectedVertexIndex - 1);
+    } // else do nothing - keep current selected vertex
 
     _polylinePath.removeAt(vertexIndex);
     emit pathChanged();
@@ -319,7 +334,12 @@ QList<QGeoCoordinate> QGCMapPolyline::offsetPolyline(double distance)
         // Intersect the offset edges to generate new central vertices
         QPointF  newVertex;
         for (int i=1; i<rgOffsetEdges.count(); i++) {
-            if (rgOffsetEdges[i - 1].intersect(rgOffsetEdges[i], &newVertex) == QLineF::NoIntersection) {
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
+            auto intersect = rgOffsetEdges[i - 1].intersect(rgOffsetEdges[i], &newVertex);
+#else
+            auto intersect = rgOffsetEdges[i - 1].intersects(rgOffsetEdges[i], &newVertex);
+#endif
+            if (intersect == QLineF::NoIntersection) {
                 // Two lines are colinear
                 newVertex = rgOffsetEdges[i].p2();
             }
@@ -338,56 +358,19 @@ QList<QGeoCoordinate> QGCMapPolyline::offsetPolyline(double distance)
 
 bool QGCMapPolyline::loadKMLFile(const QString& kmlFile)
 {
-    QFile file(kmlFile);
+    _beginResetIfNotActive();
 
-    if (!file.exists()) {
-        qgcApp()->showMessage(tr("File not found: %1").arg(kmlFile));
-        return false;
-    }
-
-    if (!file.open(QIODevice::ReadOnly)) {
-        qgcApp()->showMessage(tr("Unable to open file: %1 error: $%2").arg(kmlFile).arg(file.errorString()));
-        return false;
-    }
-
-    QDomDocument doc;
-    QString errorMessage;
-    int errorLine;
-    if (!doc.setContent(&file, &errorMessage, &errorLine)) {
-        qgcApp()->showMessage(tr("Unable to parse KML file: %1 error: %2 line: %3").arg(kmlFile).arg(errorMessage).arg(errorLine));
-        return false;
-    }
-
-    QDomNodeList rgNodes = doc.elementsByTagName("LineString");
-    if (rgNodes.count() == 0) {
-        qgcApp()->showMessage(tr("Unable to find LineString node in KML"));
-        return false;
-    }
-
-    QDomNode coordinatesNode = rgNodes.item(0).namedItem("coordinates");
-    if (coordinatesNode.isNull()) {
-        qgcApp()->showMessage(tr("Internal error: Unable to find coordinates node in KML"));
-        return false;
-    }
-
-    QString coordinatesString = coordinatesNode.toElement().text().simplified();
-    QStringList rgCoordinateStrings = coordinatesString.split(" ");
-
+    QString errorString;
     QList<QGeoCoordinate> rgCoords;
-    for (int i=0; i<rgCoordinateStrings.count()-1; i++) {
-        QString coordinateString = rgCoordinateStrings[i];
-
-        QStringList rgValueStrings = coordinateString.split(",");
-
-        QGeoCoordinate coord;
-        coord.setLongitude(rgValueStrings[0].toDouble());
-        coord.setLatitude(rgValueStrings[1].toDouble());
-
-        rgCoords.append(coord);
+    if (!KMLHelper::loadPolylineFromFile(kmlFile, rgCoords, errorString)) {
+        qgcApp()->showAppMessage(errorString);
+        return false;
     }
 
     clear();
     appendVertices(rgCoords);
+
+    _endResetIfNotActive();
 
     return true;
 }
@@ -420,12 +403,67 @@ double QGCMapPolyline::length(void) const
 
 void QGCMapPolyline::appendVertices(const QList<QGeoCoordinate>& coordinates)
 {
-    QList<QObject*> objects;
+    _beginResetIfNotActive();
 
-    foreach (const QGeoCoordinate& coordinate, coordinates) {
+    QList<QObject*> objects;
+    for (const QGeoCoordinate& coordinate: coordinates) {
         objects.append(new QGCQGeoCoordinate(coordinate, this));
         _polylinePath.append(QVariant::fromValue(coordinate));
     }
     _polylineModel.append(objects);
+
+    _endResetIfNotActive();
+}
+
+void QGCMapPolyline::beginReset(void)
+{
+    _resetActive = true;
+    _polylineModel.beginReset();
+}
+
+void QGCMapPolyline::endReset(void)
+{
+    _resetActive = false;
+    _polylineModel.endReset();
     emit pathChanged();
+}
+
+void QGCMapPolyline::_beginResetIfNotActive(void)
+{
+    if (!_resetActive) {
+        beginReset();
+    }
+}
+
+void QGCMapPolyline::_endResetIfNotActive(void)
+{
+    if (!_resetActive) {
+        endReset();
+    }
+}
+
+void QGCMapPolyline::setTraceMode(bool traceMode)
+{
+    if (traceMode != _traceMode) {
+        _traceMode = traceMode;
+        emit traceModeChanged(traceMode);
+    }
+}
+
+void QGCMapPolyline::selectVertex(int index)
+{
+    if(index == _selectedVertexIndex) return;   // do nothing
+
+    if(-1 <= index && index < count()) {
+        _selectedVertexIndex = index;
+    } else {
+        if (!qgcApp()->runningUnitTests()) {
+            qCWarning(ParameterManagerLog)
+                    << QString("QGCMapPolyline: Selected vertex index (%1) is out of bounds! "
+                               "Polyline vertices indexes range is [%2..%3].").arg(index).arg(0).arg(count()-1);
+        }
+        _selectedVertexIndex = -1;   // deselect vertex
+    }
+
+    emit selectedVertexChanged(_selectedVertexIndex);
 }

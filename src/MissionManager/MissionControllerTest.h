@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -32,12 +32,12 @@ public:
 private slots:
     void cleanup(void);
 
-    void _testGimbalRecalc(void);
-    void _testLoadJsonSectionAvailable(void);
-    void _testEmptyVehicleAPM(void);
-    void _testEmptyVehiclePX4(void);
-    void _testAddWayppointAPM(void);
-    void _testAddWayppointPX4(void);
+    void _testLoadJsonSectionAvailable  (void);
+    void _testEmptyVehicleAPM           (void);
+    void _testEmptyVehiclePX4           (void);
+    void _testGlobalAltMode             (void);
+    void _testGimbalRecalc              (void);
+    void _testVehicleYawRecalc          (void);
 
 private:
 #if 0
@@ -70,25 +70,23 @@ private:
 
     enum {
         visualItemsChangedSignalIndex = 0,
-        waypointLinesChangedSignalIndex,
         missionControllerMaxSignalIndex
     };
 
     enum {
         visualItemsChangedSignalMask =                 1 << visualItemsChangedSignalIndex,
-        waypointLinesChangedSignalMask =                1 << waypointLinesChangedSignalIndex,
     };
 
-    MultiSignalSpy*     _multiSpyMissionController;
-    static const size_t _cMissionControllerSignals = missionControllerMaxSignalIndex;
-    const char*         _rgMissionControllerSignals[_cMissionControllerSignals];
+    MultiSignalSpy*         _multiSpyMissionController  = nullptr;
+    MultiSignalSpy*         _multiSpyMissionItem        = nullptr;
+    PlanMasterController*   _masterController           = nullptr;
+    MissionController*      _missionController          = nullptr;
 
-    MultiSignalSpy*     _multiSpyMissionItem;
     static const size_t _cVisualItemSignals = visualItemMaxSignalIndex;
-    const char*         _rgVisualItemSignals[_cVisualItemSignals];
+    static const size_t _cMissionControllerSignals = missionControllerMaxSignalIndex;
 
-    PlanMasterController*   _masterController;
-    MissionController*      _missionController;
+    const char*         _rgMissionControllerSignals[_cMissionControllerSignals];
+    const char*         _rgVisualItemSignals[_cVisualItemSignals];
 };
 
 #endif

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -11,6 +11,7 @@
 
 #include "SectionTest.h"
 #include "CameraSection.h"
+#include "PlanMasterController.h"
 
 /// Unit test for CameraSection
 class CameraSectionTest : public SectionTest
@@ -23,6 +24,13 @@ public:
     void init(void) override;
     void cleanup(void) override;
 
+    static SimpleMissionItem* createValidStopVideoItem      (PlanMasterController* masterController);
+    static SimpleMissionItem* createValidStopDistanceItem   (PlanMasterController* masterController);
+    static SimpleMissionItem* createValidStopTimeItem       (PlanMasterController* masterController);
+    static SimpleMissionItem* createInvalidStopVideoItem    (PlanMasterController* masterController);
+    static SimpleMissionItem* createInvalidStopDistanceItem (PlanMasterController* masterController);
+    static SimpleMissionItem* createInvalidStopTimeItem     (PlanMasterController* masterController);
+
 private slots:
     void _testDirty                                 (void);
     void _testSettingsAvailable                     (void);
@@ -34,7 +42,7 @@ private slots:
     void _testScanForPhotoIntervalDistanceSection   (void);
     void _testScanForStartVideoSection              (void);
     void _testScanForStopVideoSection               (void);
-    void _testScanForStopImageSection               (void);
+    void _testScanForStopPhotoSection               (void);
     void _testScanForCameraModeSection              (void);
     void _testScanForTakePhotoSection               (void);
     void _testScanForMultipleItems                  (void);

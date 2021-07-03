@@ -1,16 +1,14 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-
-import QtQuick          2.3
-import QtQuick.Controls 1.2
-import QtQuick.Layouts  1.2
+import QtQuick          2.11
+import QtQuick.Layouts  1.11
 
 import QGroundControl                       1.0
 import QGroundControl.Controls              1.0
@@ -21,12 +19,15 @@ import QGroundControl.Palette               1.0
 //-------------------------------------------------------------------------
 //-- RC RSSI Indicator
 Item {
+    id:             _root
     width:          rssiRow.width * 1.1
     anchors.top:    parent.top
     anchors.bottom: parent.bottom
-    visible:        _activeVehicle ? _activeVehicle.supportsRadio : true
 
-    property var _activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
+    property bool showIndicator: _activeVehicle.supportsRadio
+
+    property var    _activeVehicle:     QGroundControl.multiVehicleManager.activeVehicle
+    property bool   _rcRSSIAvailable:   _activeVehicle ? _activeVehicle.rcRSSI > 0 && _activeVehicle.rcRSSI <= 100 : false
 
     Component {
         id: rcRSSIInfo
@@ -47,14 +48,14 @@ Item {
 
                 QGCLabel {
                     id:             rssiLabel
-                    text:           _activeVehicle ? (_activeVehicle.rcRSSI != 255 ? qsTr("RC RSSI Status") : qsTr("RC RSSI Data Unavailable")) : qsTr("N/A", "No data available")
+                    text:           _activeVehicle ? (_activeVehicle.rcRSSI !== 255 ? qsTr("RC RSSI Status") : qsTr("RC RSSI Data Unavailable")) : qsTr("N/A", "No data available")
                     font.family:    ScreenTools.demiboldFontFamily
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 GridLayout {
                     id:                 rcrssiGrid
-                    visible:            _activeVehicle && _activeVehicle.rcRSSI != 255
+                    visible:            _rcRSSIAvailable
                     anchors.margins:    ScreenTools.defaultFontPixelHeight
                     columnSpacing:      ScreenTools.defaultFontPixelWidth
                     columns:            2
@@ -63,12 +64,6 @@ Item {
                     QGCLabel { text: qsTr("RSSI:") }
                     QGCLabel { text: _activeVehicle ? (_activeVehicle.rcRSSI + "%") : 0 }
                 }
-            }
-
-            Component.onCompleted: {
-                var pos = mapFromItem(toolBar, centerX - (width / 2), toolBar.height)
-                x = pos.x
-                y = pos.y + ScreenTools.defaultFontPixelHeight
             }
         }
     }
@@ -86,22 +81,21 @@ Item {
             sourceSize.height:  height
             source:             "/qmlimages/RC.svg"
             fillMode:           Image.PreserveAspectFit
-            opacity:            _activeVehicle ? (((_activeVehicle.rcRSSI < 0) || (_activeVehicle.rcRSSI > 100)) ? 0.5 : 1) : 0.5
+            opacity:            _rcRSSIAvailable ? 1 : 0.5
             color:              qgcPal.buttonText
         }
 
         SignalStrength {
             anchors.verticalCenter: parent.verticalCenter
             size:                   parent.height * 0.5
-            percent:                _activeVehicle ? ((_activeVehicle.rcRSSI > 100) ? 0 : _activeVehicle.rcRSSI) : 0
+            percent:                _rcRSSIAvailable ? _activeVehicle.rcRSSI : 0
         }
     }
 
     MouseArea {
         anchors.fill:   parent
         onClicked: {
-            var centerX = mapToItem(toolBar, x, y).x + (width / 2)
-            mainWindow.showPopUp(rcRSSIInfo, centerX)
+            mainWindow.showIndicatorPopup(_root, rcRSSIInfo)
         }
     }
 }

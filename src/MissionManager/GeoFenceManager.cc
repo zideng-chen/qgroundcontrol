@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -11,21 +11,23 @@
 #include "Vehicle.h"
 #include "QmlObjectListModel.h"
 #include "ParameterManager.h"
+#include "QGCApplication.h"
 #include "QGCMapPolygon.h"
 #include "QGCMapCircle.h"
 
 QGC_LOGGING_CATEGORY(GeoFenceManagerLog, "GeoFenceManagerLog")
 
 GeoFenceManager::GeoFenceManager(Vehicle* vehicle)
-    : _vehicle                  (vehicle)
-    , _planManager              (vehicle, MAV_MISSION_TYPE_FENCE)
-    , _firstParamLoadComplete   (false)
+    : PlanManager       (vehicle, MAV_MISSION_TYPE_FENCE)
+#if defined(QGC_AIRMAP_ENABLED)
+    , _airspaceManager  (qgcApp()->toolbox()->airspaceManager())
+#endif
 {
-    connect(&_planManager, &PlanManager::inProgressChanged,         this, &GeoFenceManager::inProgressChanged);
-    connect(&_planManager, &PlanManager::error,                     this, &GeoFenceManager::error);
-    connect(&_planManager, &PlanManager::removeAllComplete,         this, &GeoFenceManager::removeAllComplete);
-    connect(&_planManager, &PlanManager::sendComplete,              this, &GeoFenceManager::_sendComplete);
-    connect(&_planManager, &PlanManager::newMissionItemsAvailable,  this, &GeoFenceManager::_planManagerLoadComplete);
+    connect(this, &PlanManager::inProgressChanged,          this, &GeoFenceManager::inProgressChanged);
+    connect(this, &PlanManager::error,                      this, &GeoFenceManager::error);
+    connect(this, &PlanManager::removeAllComplete,          this, &GeoFenceManager::removeAllComplete);
+    connect(this, &PlanManager::sendComplete,               this, &GeoFenceManager::_sendComplete);
+    connect(this, &PlanManager::newMissionItemsAvailable,   this, &GeoFenceManager::_planManagerLoadComplete);
 }
 
 GeoFenceManager::~GeoFenceManager()
@@ -33,22 +35,10 @@ GeoFenceManager::~GeoFenceManager()
 
 }
 
-bool GeoFenceManager::inProgress(void) const
-{
-    return _planManager.inProgress();
-}
-
-void GeoFenceManager::loadFromVehicle(void)
-{
-    _planManager.loadFromVehicle();
-}
-
 void GeoFenceManager::sendToVehicle(const QGeoCoordinate&   breachReturn,
                                     QmlObjectListModel&     polygons,
                                     QmlObjectListModel&     circles)
 {
-    Q_UNUSED(breachReturn);
-
     QList<MissionItem*> fenceItems;
 
     _sendPolygons.clear();
@@ -60,6 +50,7 @@ void GeoFenceManager::sendToVehicle(const QGeoCoordinate&   breachReturn,
     for (int i=0; i<circles.count(); i++) {
         _sendCircles.append(*circles.value<QGCFenceCircle*>(i));
     }
+    _breachReturnPoint = breachReturn;
 
     for (int i=0; i<_sendPolygons.count(); i++) {
         const QGCFencePolygon& polygon = _sendPolygons[i];
@@ -99,13 +90,31 @@ void GeoFenceManager::sendToVehicle(const QGeoCoordinate&   breachReturn,
         fenceItems.append(item);
     }
 
+    if (_breachReturnPoint.isValid()) {
+        MissionItem* item = new MissionItem(0,
+                                            MAV_CMD_NAV_FENCE_RETURN_POINT,
+                                            MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                                            0, 0, 0, 0,                    // param 1-4 unused
+                                            breachReturn.latitude(),
+                                            breachReturn.longitude(),
+                                            breachReturn.altitude(),
+                                            false,                      // autocontinue
+                                            false,                      // isCurrentItem
+                                            this);                      // parent
+        fenceItems.append(item);
+    }
+
     // Plan manager takes control of MissionItems, so no need to delete
-    _planManager.writeMissionItems(fenceItems);
+    writeMissionItems(fenceItems);
 }
 
 void GeoFenceManager::removeAll(void)
 {
-    _planManager.removeAll();
+    _polygons.clear();
+    _circles.clear();
+    _breachReturnPoint = QGeoCoordinate();
+
+    PlanManager::removeAll();
 }
 
 void GeoFenceManager::_sendComplete(bool error)
@@ -113,6 +122,7 @@ void GeoFenceManager::_sendComplete(bool error)
     if (error) {
         _polygons.clear();
         _circles.clear();
+        _breachReturnPoint = QGeoCoordinate();
     } else {
         _polygons = _sendPolygons;
         _circles = _sendCircles;
@@ -134,7 +144,7 @@ void GeoFenceManager::_planManagerLoadComplete(bool removeAllRequested)
     MAV_CMD expectedCommand = (MAV_CMD)0;
     int expectedVertexCount = 0;
     QGCFencePolygon nextPolygon(true /* inclusion */);
-    const QList<MissionItem*>& fenceItems = _planManager.missionItems();
+    const QList<MissionItem*>& fenceItems = missionItems();
 
     for (int i=0; i<fenceItems.count(); i++) {
         MissionItem* item = fenceItems[i];
@@ -170,6 +180,8 @@ void GeoFenceManager::_planManagerLoadComplete(bool removeAllRequested)
             }
             QGCFenceCircle circle(QGeoCoordinate(item->param5(), item->param6()), item->param1(), command == MAV_CMD_NAV_FENCE_CIRCLE_INCLUSION /* inclusion */);
             _circles.append(circle);
+        } else if (command == MAV_CMD_NAV_FENCE_RETURN_POINT) {
+            _breachReturnPoint = QGeoCoordinate(item->param5(), item->param6(), item->param7());
         } else {
             emit error(UnsupportedCommand, tr("GeoFence load: Unsupported command %1").arg(item->command()));
             break;
@@ -179,6 +191,7 @@ void GeoFenceManager::_planManagerLoadComplete(bool removeAllRequested)
     if (loadFailed) {
         _polygons.clear();
         _circles.clear();
+        _breachReturnPoint = QGeoCoordinate();
     }
 
     emit loadComplete();

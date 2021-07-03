@@ -1,27 +1,18 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-
-/*!
- * @file
- *   @brief Message Handler
- *   @author Gus Grubba <mavlink@grubba.com>
- */
-
-#ifndef QGCMESSAGEHANDLER_H
-#define QGCMESSAGEHANDLER_H
+#pragma once
 
 #include <QObject>
 #include <QVector>
 #include <QMutex>
 
-#include "Vehicle.h"
 #include "QGCToolbox.h"
 
 class Vehicle;
@@ -40,11 +31,11 @@ public:
     /**
      * @brief Get message source component ID
      */
-    int getComponentID()        { return _compId; }
+    int getComponentID() const       { return _compId; }
     /**
      * @brief Get message severity (from MAV_SEVERITY_XXX enum)
      */
-    int getSeverity()           { return _severity; }
+    int getSeverity() const          { return _severity; }
     /**
      * @brief Get message text (e.g. "[pm] sending list")
      */
@@ -56,7 +47,7 @@ public:
     /**
      * @return true: This message is a of a severity which is considered an error
      */
-    bool severityIsError();
+    bool severityIsError() const;
 
 private:
     UASMessage(int componentid, int severity, QString text);
@@ -158,4 +149,3 @@ private:
     MultiVehicleManager*    _multiVehicleManager;
 };
 
-#endif // QGCMESSAGEHANDLER_H

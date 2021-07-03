@@ -1,124 +1,133 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-import QtQuick          2.3
-import QtQuick.Controls 1.2
-import QtLocation       5.3
-import QtPositioning    5.3
-import QtQuick.Dialogs  1.2
+import QtQuick                      2.11
+import QtQuick.Controls             2.4
+import QtLocation                   5.3
+import QtPositioning                5.3
+import QtQuick.Dialogs              1.2
 
-import QGroundControl               1.0
-import QGroundControl.ScreenTools   1.0
-import QGroundControl.Palette       1.0
-import QGroundControl.Controls      1.0
-import QGroundControl.FlightMap     1.0
+import QGroundControl                   1.0
+import QGroundControl.ScreenTools       1.0
+import QGroundControl.Palette           1.0
+import QGroundControl.Controls          1.0
+import QGroundControl.FlightMap         1.0
+import QGroundControl.ShapeFileHelper   1.0
 
-/// QGCmapPolyline map visuals
+/// QGCMapPolyline map visuals
 Item {
     id: _root
 
-    property var    qgcView                     ///< QGCView for popping dialogs
     property var    mapControl                  ///< Map control to place item in
     property var    mapPolyline                 ///< QGCMapPolyline object
     property bool   interactive:    mapPolyline.interactive
     property int    lineWidth:      3
     property color  lineColor:      "#be781c"
 
-
-    property var    _polylineComponent
     property var    _dragHandlesComponent
     property var    _splitHandlesComponent
+    property string _instructionText:       _corridorToolsText
+    property real   _zorderDragHandle:      QGroundControl.zOrderMapItems + 3   // Highest to prevent splitting when items overlap
+    property real   _zorderSplitHandle:     QGroundControl.zOrderMapItems + 2
+    property var    _savedVertices:         [ ]
 
-    property real _zorderDragHandle:    QGroundControl.zOrderMapItems + 3   // Highest to prevent splitting when items overlap
-    property real _zorderSplitHandle:   QGroundControl.zOrderMapItems + 2
+    readonly property string _corridorToolsText:    qsTr("Polyline Tools")
+    readonly property string _traceText:            qsTr("Click in the map to add vertices. Click 'Done Tracing' when finished.")
 
-    function addVisuals() {
-        _polylineComponent = polylineComponent.createObject(mapControl)
-        mapControl.addMapItem(_polylineComponent)
-    }
-
-    function removeVisuals() {
-        _polylineComponent.destroy()
-    }
-
-    function addHandles() {
-        if (!_dragHandlesComponent) {
-            _dragHandlesComponent = dragHandlesComponent.createObject(mapControl)
-            _splitHandlesComponent = splitHandlesComponent.createObject(mapControl)
+    function _addCommonVisuals() {
+        if (_objMgrCommonVisuals.empty) {
+            _objMgrCommonVisuals.createObject(polylineComponent, mapControl, true)
         }
     }
 
-    function removeHandles() {
-        if (_dragHandlesComponent) {
-            _dragHandlesComponent.destroy()
-            _dragHandlesComponent = undefined
-        }
-        if (_splitHandlesComponent) {
-            _splitHandlesComponent.destroy()
-            _splitHandlesComponent = undefined
+    function _addInteractiveVisuals() {
+        if (_objMgrInteractiveVisuals.empty) {
+            _objMgrInteractiveVisuals.createObjects([ dragHandlesComponent, splitHandlesComponent, toolbarComponent ], mapControl)
         }
     }
 
     /// Calculate the default/initial polyline
-    function defaultPolylineVertices() {
-        var x = map.centerViewport.x + (map.centerViewport.width / 2)
-        var yInset = map.centerViewport.height / 4
-        var topPointCoord =     map.toCoordinate(Qt.point(x, map.centerViewport.y + yInset),                                false /* clipToViewPort */)
-        var bottomPointCoord =  map.toCoordinate(Qt.point(x, map.centerViewport.y + map.centerViewport.height - yInset),    false /* clipToViewPort */)
+    function _defaultPolylineVertices() {
+        var x = mapControl.centerViewport.x + (mapControl.centerViewport.width / 2)
+        var yInset = mapControl.centerViewport.height / 4
+        var topPointCoord =     mapControl.toCoordinate(Qt.point(x, mapControl.centerViewport.y + yInset),                                false /* clipToViewPort */)
+        var bottomPointCoord =  mapControl.toCoordinate(Qt.point(x, mapControl.centerViewport.y + mapControl.centerViewport.height - yInset),    false /* clipToViewPort */)
         return [ topPointCoord, bottomPointCoord ]
     }
 
-    /// Add an initial 2 point polyline
-    function addInitialPolyline() {
-        if (mapPolyline.count < 2) {
-            mapPolyline.clear()
-            var initialVertices = defaultPolylineVertices()
-            mapPolyline.appendVertex(initialVertices[0])
-            mapPolyline.appendVertex(initialVertices[1])
+    /// Reset polyline back to initial default
+    function _resetPolyline() {
+        mapPolyline.beginReset()
+        mapPolyline.clear()
+        var initialVertices = _defaultPolylineVertices()
+        mapPolyline.appendVertex(initialVertices[0])
+        mapPolyline.appendVertex(initialVertices[1])
+        mapPolyline.endReset()
+    }
+
+    function _saveCurrentVertices() {
+        _savedVertices = [ ]
+        for (var i=0; i<mapPolyline.count; i++) {
+            _savedVertices.push(mapPolyline.vertexCoordinate(i))
         }
     }
 
-    /// Reset polyline back to initial default
-    function resetPolyline() {
+    function _restorePreviousVertices() {
+        mapPolyline.beginReset()
         mapPolyline.clear()
-        addInitialPolyline()
+        for (var i=0; i<_savedVertices.length; i++) {
+            mapPolyline.appendVertex(_savedVertices[i])
+        }
+        mapPolyline.endReset()
     }
 
     onInteractiveChanged: {
         if (interactive) {
-            addHandles()
+            _addInteractiveVisuals()
         } else {
-            removeHandles()
+            _objMgrInteractiveVisuals.destroyObjects()
+        }
+    }
+
+    Connections {
+        target: mapPolyline
+        onTraceModeChanged: {
+            if (mapPolyline.traceMode) {
+                _instructionText = _traceText
+                _objMgrTraceVisuals.createObject(traceMouseAreaComponent, mapControl, false)
+            } else {
+                _instructionText = _corridorToolsText
+                _objMgrTraceVisuals.destroyObjects()
+            }
         }
     }
 
     Component.onCompleted: {
-        addVisuals()
+        _addCommonVisuals()
         if (interactive) {
-            addHandles()
+            _addInteractiveVisuals()
         }
     }
+    Component.onDestruction: mapPolyline.traceMode = false
 
-    Component.onDestruction: {
-        removeVisuals()
-        removeHandles()
-    }
+    QGCDynamicObjectManager { id: _objMgrCommonVisuals }
+    QGCDynamicObjectManager { id: _objMgrInteractiveVisuals }
+    QGCDynamicObjectManager { id: _objMgrTraceVisuals }
 
     QGCPalette { id: qgcPal }
 
     QGCFileDialog {
         id:             kmlLoadDialog
-        qgcView:        _root.qgcView
         folder:         QGroundControl.settingsManager.appSettings.missionSavePath
         title:          qsTr("Select KML File")
         selectExisting: true
-        nameFilters:    [ qsTr("KML files (*.kml)") ]
+        nameFilters:    ShapeFileHelper.fileDialogKMLFilters
 
         onAcceptedForLoad: {
             mapPolyline.loadKMLFile(file)
@@ -126,19 +135,34 @@ Item {
         }
     }
 
-    Menu {
+    QGCMenu {
         id: menu
+        property int _removeVertexIndex
 
-        property int removeVertex
-
-        MenuItem {
-            text:           qsTr("Remove vertex" )
-            onTriggered:    mapPolyline.removeVertex(parent.removeVertex)
+        function popUpWithIndex(curIndex) {
+            _removeVertexIndex = curIndex
+            removeVertexItem.visible = mapPolyline.count > 2
+            menu.popup()
         }
 
-        MenuItem {
-            text:           qsTr("Load KML...")
-            onTriggered:    kmlLoadDialog.openForLoad()
+        QGCMenuItem {
+            id:             removeVertexItem
+            text:           qsTr("Remove vertex" )
+            onTriggered:    mapPolyline.removeVertex(menu._removeVertexIndex)
+        }
+
+        QGCMenuItem {
+            text:           qsTr("Edit position..." )
+            onTriggered:    mainWindow.showComponentDialog(editPositionDialog, qsTr("Edit Position"), mainWindow.showDialogDefaultWidth, StandardButton.Cancel)
+        }
+    }
+
+    Component {
+        id: editPositionDialog
+
+        EditPositionDialog {
+            Component.onCompleted: coordinate = mapPolyline.path[menu._removeVertexIndex]
+            onCoordinateChanged:  mapPolyline.adjustVertex(menu._removeVertexIndex,coordinate)
         }
     }
 
@@ -149,6 +173,8 @@ Item {
             line.width: lineWidth
             line.color: lineColor
             path:       mapPolyline.path
+            visible:    _root.visible
+            opacity:    _root.opacity
         }
     }
 
@@ -157,31 +183,15 @@ Item {
 
         MapQuickItem {
             id:             mapQuickItem
-            anchorPoint.x:  splitHandle.width / 2
-            anchorPoint.y:  splitHandle.height / 2
+            anchorPoint.x:  sourceItem.width / 2
+            anchorPoint.y:  sourceItem.height / 2
+            z:              _zorderSplitHandle
+            opacity:        _root.opacity
 
             property int vertexIndex
 
-            sourceItem: Rectangle {
-                id:             splitHandle
-                width:          ScreenTools.defaultFontPixelHeight * 1.5
-                height:         width
-                radius:         width / 2
-                border.color:      "white"
-                color:          "transparent"
-                opacity:        .50
-                z:              _zorderSplitHandle
-
-                QGCLabel {
-                    anchors.horizontalCenter:   parent.horizontalCenter
-                    anchors.verticalCenter:     parent.verticalCenter
-                    text:                       "+"
-                }
-
-                QGCMouseArea {
-                    fillItem:   parent
-                    onClicked:  mapPolyline.splitSegment(mapQuickItem.vertexIndex)
-                }
+            sourceItem: SplitIndicator {
+                onClicked:  mapPolyline.splitSegment(mapQuickItem.vertexIndex)
             }
         }
     }
@@ -195,6 +205,8 @@ Item {
             delegate: Item {
                 property var _splitHandle
                 property var _vertices:     mapPolyline.path
+
+                opacity:    _root.opacity
 
                 function _setHandlePosition() {
                     var nextIndex = index + 1
@@ -226,8 +238,10 @@ Item {
         id: dragAreaComponent
 
         MissionItemIndicatorDrag {
+            mapControl: _root.mapControl
             id:         dragArea
             z:          _zorderDragHandle
+            opacity:    _root.opacity
 
             property int polylineVertex
 
@@ -243,12 +257,7 @@ Item {
             }
 
             onClicked: {
-                if (polylineVertex == 0) {
-                    menu.removeVertex = polylineVertex
-                    menu.popup()
-                } else {
-                    mapPolyline.removeVertex(polylineVertex)
-                }
+                menu.popUpWithIndex(polylineVertex)
             }
 
         }
@@ -262,24 +271,18 @@ Item {
             anchorPoint.x:  dragHandle.width / 2
             anchorPoint.y:  dragHandle.height / 2
             z:              _zorderDragHandle
+            opacity:        _root.opacity
 
             property int polylineVertex
 
             sourceItem: Rectangle {
-                id:         dragHandle
-                width:      ScreenTools.defaultFontPixelHeight * 1.5
-                height:     width
-                radius:     width / 2
-                color:      "white"
-                opacity:    .90
-
-                QGCLabel {
-                    anchors.horizontalCenter:   parent.horizontalCenter
-                    anchors.verticalCenter:     parent.verticalCenter
-                    text:                       "..."
-                    color:                      "black"
-                    visible:                    polylineVertex == 0
-                }
+                id:             dragHandle
+                width:          ScreenTools.defaultFontPixelHeight * 1.5
+                height:         width
+                radius:         width * 0.5
+                color:          Qt.rgba(1,1,1,0.8)
+                border.color:   Qt.rgba(0,0,0,0.25)
+                border.width:   1
             }
         }
     }
@@ -293,6 +296,8 @@ Item {
 
             delegate: Item {
                 property var _visuals: [ ]
+
+                opacity:    _root.opacity
 
                 Component.onCompleted: {
                     var dragHandle = dragHandleComponent.createObject(mapControl)
@@ -310,6 +315,66 @@ Item {
                         _visuals[i].destroy()
                     }
                     _visuals = [ ]
+                }
+            }
+        }
+    }
+
+    Component {
+        id: toolbarComponent
+
+        PlanEditToolbar {
+            anchors.horizontalCenter:       mapControl.left
+            anchors.horizontalCenterOffset: mapControl.centerViewport.left + (mapControl.centerViewport.width / 2)
+            y:                              mapControl.centerViewport.top
+            z:                              QGroundControl.zOrderMapItems + 2
+            availableWidth:                 mapControl.centerViewport.width
+
+            QGCButton {
+                _horizontalPadding: 0
+                text:               qsTr("Basic")
+                visible:            !mapPolyline.traceMode
+                onClicked:          _resetPolyline()
+            }
+
+            QGCButton {
+                _horizontalPadding: 0
+                text:               mapPolyline.traceMode ? qsTr("Done Tracing") : qsTr("Trace")
+                onClicked: {
+                    if (mapPolyline.traceMode) {
+                        if (mapPolyline.count < 2) {
+                            _restorePreviousVertices()
+                        }
+                        mapPolyline.traceMode = false
+                    } else {
+                        _saveCurrentVertices()
+                        mapPolyline.traceMode = true
+                        mapPolyline.clear();
+                    }
+                }
+            }
+
+            QGCButton {
+                _horizontalPadding: 0
+                text:               qsTr("Load KML...")
+                onClicked:          kmlLoadDialog.openForLoad()
+                visible:            !mapPolyline.traceMode
+            }
+        }
+    }
+
+    // Mouse area to capture clicks for tracing a polyline
+    Component {
+        id:  traceMouseAreaComponent
+
+        MouseArea {
+            anchors.fill:       mapControl
+            preventStealing:    true
+            z:                  QGroundControl.zOrderMapItems + 1   // Over item indicators
+
+            onClicked: {
+                if (mouse.button === Qt.LeftButton && _root.interactive) {
+                    mapPolyline.appendVertex(mapControl.toCoordinate(Qt.point(mouse.x, mouse.y), false /* clipToViewPort */))
                 }
             }
         }

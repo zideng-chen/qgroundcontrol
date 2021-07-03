@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -34,8 +34,6 @@ DropButton {
     property bool   showAllItems:         true
     property bool   showFollowVehicle:    false
     property bool   followVehicle:        false
-
-    property var _activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
 
     function fitHomePosition() {
         var homePosition = QtPositioning.coordinate()
@@ -188,7 +186,7 @@ DropButton {
             }
 
             QGCButton {
-                text:               qsTr("Home")
+                text:               qsTr("Launch")
                 Layout.fillWidth:   true
                 enabled:            !followVehicleCheckBox.checked
 
@@ -209,14 +207,25 @@ DropButton {
                 }
             }
 
+
             QGCButton {
-                text:               qsTr("Vehicle")
+                text:               qsTr("Specified Location")
                 Layout.fillWidth:   true
-                enabled:            _activeVehicle && _activeVehicle.latitude != 0 && _activeVehicle.longitude != 0 && !followVehicleCheckBox.checked
 
                 onClicked: {
                     dropButton.hideDropDown()
-                    map.center = activeVehicle.coordinate
+                    map.centerToSpecifiedLocation()
+                }
+            }
+
+            QGCButton {
+                text:               qsTr("Vehicle")
+                Layout.fillWidth:   true
+                enabled:            globals.activeVehicle && globals.activeVehicle.latitude != 0 && globals.activeVehicle.longitude != 0 && !followVehicleCheckBox.checked
+
+                onClicked: {
+                    dropButton.hideDropDown()
+                    map.center = globals.activeVehicle.coordinate
                 }
             }
 

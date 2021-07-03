@@ -1,76 +1,59 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-
 import QtQuick          2.3
-import QtQuick.Controls 1.2
+import QtQuick.Controls 2.4
 
 import QGroundControl.Controls      1.0
 import QGroundControl.Palette       1.0
 import QGroundControl.ScreenTools   1.0
 
-Item {
-    id:     _root
-    width:  height
-    state:  "HelpShown"
-    clip:   true
+// Important Note: Toolbar buttons must manage their checked state manually in order to support
+// view switch prevention. This means they can't be checkable or autoExclusive.
 
-    property alias          source:         icon.source
-    property bool           checked:        false
-    property bool           logo:           false
-    property ExclusiveGroup exclusiveGroup:  null
+Button {
+    id:                 button
+    height:             ScreenTools.defaultFontPixelHeight * 3
+    leftPadding:        _horizontalMargin
+    rightPadding:       _horizontalMargin
+    checkable:          false
 
-    signal clicked()
+    property bool logo: false
 
-    readonly property real _topBottomMargins: ScreenTools.defaultFontPixelHeight / 2
+    property real _horizontalMargin: ScreenTools.defaultFontPixelWidth
 
-    onExclusiveGroupChanged: {
-        if (exclusiveGroup) {
-            exclusiveGroup.bindCheckable(_root)
-        }
-    }
+    onCheckedChanged: checkable = false
 
-    QGCPalette { id: qgcPal }
-
-    Rectangle {
-        anchors.fill:   parent
-        visible:        logo
-        color:          qgcPal.brandingPurple
-    }
-
-    QGCColoredImage {
-        id:                     icon
-        anchors.left:           parent.left
-        anchors.right:          parent.right
-        anchors.topMargin:      _topBottomMargins
-        anchors.top:            parent.top
-        anchors.bottomMargin:   _topBottomMargins
-        anchors.bottom:         parent.bottom
-        sourceSize.height:      parent.height
-        fillMode:               Image.PreserveAspectFit
-        color:                  logo ? "white" : (checked ? qgcPal.buttonHighlight : qgcPal.buttonText)
-    }
-
-    Rectangle {
-        anchors.left:   parent.left
-        anchors.right:  parent.right
-        anchors.bottom: parent.bottom
-        height:         _topBottomMargins * 0.25
-        color:          qgcPal.buttonHighlight
-        visible:        checked
-    }
-
-    MouseArea {
+    background: Rectangle {
         anchors.fill: parent
-        onClicked: {
-            checked = true
-            _root.clicked()
+        color:  button.checked ? qgcPal.buttonHighlight : Qt.rgba(0,0,0,0)
+    }
+
+    contentItem: Row {
+        spacing:                ScreenTools.defaultFontPixelWidth
+        anchors.verticalCenter: button.verticalCenter
+        QGCColoredImage {
+            id:                     _icon
+            height:                 ScreenTools.defaultFontPixelHeight * 2
+            width:                  height
+            sourceSize.height:      parent.height
+            fillMode:               Image.PreserveAspectFit
+            color:                  logo ? "transparent" : (button.checked ? qgcPal.buttonHighlightText : qgcPal.buttonText)
+            source:                 button.icon.source
+            anchors.verticalCenter: parent.verticalCenter
+        }
+        Label {
+            id:                     _label
+            visible:                text !== ""
+            text:                   button.text
+            color:                  button.checked ? qgcPal.buttonHighlightText : qgcPal.buttonText
+            anchors.verticalCenter: parent.verticalCenter
         }
     }
 }

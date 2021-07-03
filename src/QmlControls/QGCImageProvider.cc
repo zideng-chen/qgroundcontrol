@@ -1,21 +1,11 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
-
-
-/**
-* @file
-*   @brief Image Provider
-*
-*   @author Gus Grubba <mavlink@grubba.com>
-*
-*/
-
 
 #include "QGCImageProvider.h"
 
@@ -23,8 +13,8 @@
 #include <QFont>
 
 QGCImageProvider::QGCImageProvider(QGCApplication *app, QGCToolbox* toolbox)
-    : QGCTool(app, toolbox)
-    , QQuickImageProvider(QQmlImageProviderBase::Image)
+    : QGCTool               (app, toolbox)
+    , QQuickImageProvider   (QQmlImageProviderBase::Image)
 {
 }
 
@@ -37,9 +27,9 @@ void QGCImageProvider::setToolbox(QGCToolbox *toolbox)
 {
    QGCTool::setToolbox(toolbox);
    //-- Dummy temporary image until something comes along
-   _pImage = QImage(320, 240, QImage::Format_RGBA8888);
-   _pImage.fill(Qt::black);
-   QPainter painter(&_pImage);
+   _image = QImage(320, 240, QImage::Format_RGBA8888);
+   _image.fill(Qt::black);
+   QPainter painter(&_image);
    QFont f = painter.font();
    f.setPixelSize(20);
    painter.setFont(f);
@@ -74,11 +64,11 @@ QImage QGCImageProvider::requestImage(const QString & /* image url with vehicle 
     For now, we don't even look at the URL. This will have to be fixed if we're to support multiple
     vehicles transmitting flow images.
 */
-    return _pImage;
+    return _image;
 }
 
 void QGCImageProvider::setImage(QImage* pImage, int /* vehicle id*/)
 {
-    _pImage = pImage->mirrored();
+    _image = pImage->mirrored();
 }
 

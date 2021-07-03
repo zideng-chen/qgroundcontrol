@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -28,14 +28,14 @@ public:
     GPSManager(QGCApplication* app, QGCToolbox* toolbox);
     ~GPSManager();
 
-    void connectGPS     (const QString& device);
+    void connectGPS     (const QString& device, const QString& gps_type);
     void disconnectGPS  (void);
     bool connected      (void) const { return _gpsProvider && _gpsProvider->isRunning(); }
 
 signals:
     void onConnect();
     void onDisconnect();
-    void surveyInStatus(float duration, float accuracyMM, bool valid, bool active);
+    void surveyInStatus(float duration, float accuracyMM,  double latitude, double longitude, float altitude, bool valid, bool active);
     void satelliteUpdate(int numSats);
 
 private slots:

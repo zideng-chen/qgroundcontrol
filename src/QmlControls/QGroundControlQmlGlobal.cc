@@ -1,17 +1,14 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-
-/// @file
-///     @author Don Gagne <don@thegagnes.com>
-
 #include "QGroundControlQmlGlobal.h"
+#include "LinkManager.h"
 
 #include <QSettings>
 #include <QLineF>
@@ -28,22 +25,11 @@ QGeoCoordinate   QGroundControlQmlGlobal::_coord = QGeoCoordinate(0.0,0.0);
 double           QGroundControlQmlGlobal::_zoom = 2;
 
 QGroundControlQmlGlobal::QGroundControlQmlGlobal(QGCApplication* app, QGCToolbox* toolbox)
-    : QGCTool(app, toolbox)
-    , _flightMapInitialZoom(17.0)
-    , _linkManager(NULL)
-    , _multiVehicleManager(NULL)
-    , _mapEngineManager(NULL)
-    , _qgcPositionManager(NULL)
-    , _missionCommandTree(NULL)
-    , _videoManager(NULL)
-    , _mavlinkLogManager(NULL)
-    , _corePlugin(NULL)
-    , _firmwarePluginManager(NULL)
-    , _settingsManager(NULL)
-    , _skipSetupPage(false)
+    : QGCTool               (app, toolbox)
 {
     // We clear the parent on this object since we run into shutdown problems caused by hybrid qml app. Instead we let it leak on shutdown.
-    setParent(NULL);
+    setParent(nullptr);
+
     // Load last coordinates and zoom from config file
     QSettings settings;
     settings.beginGroup(_flightMapPositionSettingsGroup);
@@ -54,12 +40,6 @@ QGroundControlQmlGlobal::QGroundControlQmlGlobal(QGCApplication* app, QGCToolbox
 
 QGroundControlQmlGlobal::~QGroundControlQmlGlobal()
 {
-    // Save last coordinates and zoom to config file
-    QSettings settings;
-    settings.beginGroup(_flightMapPositionSettingsGroup);
-    settings.setValue(_flightMapPositionLatitudeSettingsKey, _coord.latitude());
-    settings.setValue(_flightMapPositionLongitudeSettingsKey, _coord.longitude());
-    settings.setValue(_flightMapZoomSettingsKey, _zoom);
 }
 
 void QGroundControlQmlGlobal::setToolbox(QGCToolbox* toolbox)
@@ -76,16 +56,19 @@ void QGroundControlQmlGlobal::setToolbox(QGCToolbox* toolbox)
     _corePlugin             = toolbox->corePlugin();
     _firmwarePluginManager  = toolbox->firmwarePluginManager();
     _settingsManager        = toolbox->settingsManager();
-
-#ifndef __mobile__
-   GPSManager *gpsManager = toolbox->gpsManager();
-   if (gpsManager) {
-       connect(gpsManager, &GPSManager::onConnect, this, &QGroundControlQmlGlobal::_onGPSConnect);
-       connect(gpsManager, &GPSManager::onDisconnect, this, &QGroundControlQmlGlobal::_onGPSDisconnect);
-       connect(gpsManager, &GPSManager::surveyInStatus, this, &QGroundControlQmlGlobal::_GPSSurveyInStatus);
-       connect(gpsManager, &GPSManager::satelliteUpdate, this, &QGroundControlQmlGlobal::_GPSNumSatellites);
-   }
-#endif /* __mobile__ */
+    _gpsRtkFactGroup        = qgcApp()->gpsRtkFactGroup();
+    _airspaceManager        = toolbox->airspaceManager();
+    _adsbVehicleManager     = toolbox->adsbVehicleManager();
+    _globalPalette          = new QGCPalette(this);
+#if defined(QGC_ENABLE_PAIRING)
+    _pairingManager         = toolbox->pairingManager();
+#endif
+#if defined(QGC_GST_TAISYNC_ENABLED)
+    _taisyncManager         = toolbox->taisyncManager();
+#endif
+#if defined(QGC_GST_MICROHARD_ENABLED)
+    _microhardManager       = toolbox->microhardManager();
+#endif
 }
 
 void QGroundControlQmlGlobal::saveGlobalSetting (const QString& key, const QString& value)
@@ -161,17 +144,25 @@ void QGroundControlQmlGlobal::startAPMArduSubMockLink(bool sendStatusText)
 #endif
 }
 
+void QGroundControlQmlGlobal::startAPMArduRoverMockLink(bool sendStatusText)
+{
+#ifdef QT_DEBUG
+    MockLink::startAPMArduRoverMockLink(sendStatusText);
+#else
+    Q_UNUSED(sendStatusText);
+#endif
+}
+
 void QGroundControlQmlGlobal::stopOneMockLink(void)
 {
 #ifdef QT_DEBUG
-    LinkManager* linkManager = qgcApp()->toolbox()->linkManager();
+    QList<SharedLinkInterfacePtr> sharedLinks = _toolbox->linkManager()->links();
 
-    for (int i=0; i<linkManager->links().count(); i++) {
-        LinkInterface* link = linkManager->links()[i];
+    for (int i=0; i<sharedLinks.count(); i++) {
+        LinkInterface* link = sharedLinks[i].get();
         MockLink* mockLink = qobject_cast<MockLink*>(link);
-
         if (mockLink) {
-            linkManager->disconnectLink(mockLink);
+            mockLink->disconnect();
             return;
         }
     }
@@ -190,17 +181,41 @@ void QGroundControlQmlGlobal::setMavlinkSystemID(int id)
     emit mavlinkSystemIDChanged(id);
 }
 
-int QGroundControlQmlGlobal::supportedFirmwareCount()
+bool QGroundControlQmlGlobal::singleFirmwareSupport(void)
 {
-    return _firmwarePluginManager->supportedFirmwareTypes().count();
+    return _firmwarePluginManager->supportedFirmwareClasses().count() == 1;
 }
 
+bool QGroundControlQmlGlobal::singleVehicleSupport(void)
+{
+    if (singleFirmwareSupport()) {
+        return _firmwarePluginManager->supportedVehicleClasses(_firmwarePluginManager->supportedFirmwareClasses()[0]).count() == 1;
+    }
+
+    return false;
+}
+
+bool QGroundControlQmlGlobal::px4ProFirmwareSupported()
+{
+    return _firmwarePluginManager->supportedFirmwareClasses().contains(QGCMAVLink::FirmwareClassPX4);
+}
+
+bool QGroundControlQmlGlobal::apmFirmwareSupported()
+{
+    return _firmwarePluginManager->supportedFirmwareClasses().contains(QGCMAVLink::FirmwareClassArduPilot);
+}
 
 bool QGroundControlQmlGlobal::linesIntersect(QPointF line1A, QPointF line1B, QPointF line2A, QPointF line2B)
 {
     QPointF intersectPoint;
 
-    return QLineF(line1A, line1B).intersect(QLineF(line2A, line2B), &intersectPoint) == QLineF::BoundedIntersection &&
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
+    auto intersect = QLineF(line1A, line1B).intersect(QLineF(line2A, line2B), &intersectPoint);
+#else
+    auto intersect = QLineF(line1A, line1B).intersects(QLineF(line2A, line2B), &intersectPoint);
+#endif
+
+    return  intersect == QLineF::BoundedIntersection &&
             intersectPoint != line1A && intersectPoint != line1B;
 }
 
@@ -217,7 +232,10 @@ void QGroundControlQmlGlobal::setFlightMapPosition(QGeoCoordinate& coordinate)
     if (coordinate != flightMapPosition()) {
         _coord.setLatitude(coordinate.latitude());
         _coord.setLongitude(coordinate.longitude());
-
+        QSettings settings;
+        settings.beginGroup(_flightMapPositionSettingsGroup);
+        settings.setValue(_flightMapPositionLatitudeSettingsKey, _coord.latitude());
+        settings.setValue(_flightMapPositionLongitudeSettingsKey, _coord.longitude());
         emit flightMapPositionChanged(coordinate);
     }
 }
@@ -226,27 +244,64 @@ void QGroundControlQmlGlobal::setFlightMapZoom(double zoom)
 {
     if (zoom != flightMapZoom()) {
         _zoom = zoom;
+        QSettings settings;
+        settings.beginGroup(_flightMapPositionSettingsGroup);
+        settings.setValue(_flightMapZoomSettingsKey, _zoom);
         emit flightMapZoomChanged(zoom);
     }
 }
 
-void QGroundControlQmlGlobal::_onGPSConnect()
+QString QGroundControlQmlGlobal::qgcVersion(void) const
 {
-    _gpsRtkFactGroup.connected()->setRawValue(true);
-}
-void QGroundControlQmlGlobal::_onGPSDisconnect()
-{
-    _gpsRtkFactGroup.connected()->setRawValue(false);
-}
-void QGroundControlQmlGlobal::_GPSSurveyInStatus(float duration, float accuracyMM, bool valid, bool active)
-{
-    _gpsRtkFactGroup.currentDuration()->setRawValue(duration);
-    _gpsRtkFactGroup.currentAccuracy()->setRawValue(accuracyMM/1000.0);
-    _gpsRtkFactGroup.valid()->setRawValue(valid);
-    _gpsRtkFactGroup.active()->setRawValue(active);
-}
-void QGroundControlQmlGlobal::_GPSNumSatellites(int numSatellites)
-{
-    _gpsRtkFactGroup.numSatellites()->setRawValue(numSatellites);
+    QString versionStr = qgcApp()->applicationVersion();
+#ifdef __androidArm32__
+    versionStr += QStringLiteral(" %1").arg(tr("32 bit"));
+#elif __androidArm64__
+    versionStr += QStringLiteral(" %1").arg(tr("64 bit"));
+#endif
+    return versionStr;
 }
 
+QString QGroundControlQmlGlobal::altitudeModeExtraUnits(AltMode altMode)
+{
+    switch (altMode) {
+    case AltitudeModeNone:
+        return QString();
+    case AltitudeModeRelative:
+        // Showing (Rel) all the time ends up being too noisy
+        return QString();
+    case AltitudeModeAbsolute:
+        return tr("(AMSL)");
+    case AltitudeModeCalcAboveTerrain:
+        return tr("(CalcT)");
+    case AltitudeModeTerrainFrame:
+        return tr("(TerrF)");
+    case AltitudeModeMixed:
+        qWarning() << "Internal Error: QGroundControlQmlGlobal::altitudeModeExtraUnits called with altMode == AltitudeModeMixed";
+        return QString();
+    }
+
+    // Should never get here but makes some compilers happy
+    return QString();
+}
+
+QString QGroundControlQmlGlobal::altitudeModeShortDescription(AltMode altMode)
+{
+    switch (altMode) {
+    case AltitudeModeNone:
+        return QString();
+    case AltitudeModeRelative:
+        return tr("Relative To Launch");
+    case AltitudeModeAbsolute:
+        return tr("AMSL");
+    case AltitudeModeCalcAboveTerrain:
+        return tr("Calc Above Terrain");
+    case AltitudeModeTerrainFrame:
+        return tr("Terrain Frame");
+    case AltitudeModeMixed:
+        return tr("Mixed Modes");
+    }
+
+    // Should never get here but makes some compilers happy
+    return QString();
+}

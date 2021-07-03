@@ -1,37 +1,34 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-import QtQuick          2.3
-import QtQuick.Controls 1.2
-import QtQuick.Dialogs  1.2
+import QtQuick                      2.11
+import QtQuick.Controls             2.4
+import QtQuick.Dialogs              1.3
 
 import QGroundControl.Controls      1.0
 import QGroundControl.Palette       1.0
 import QGroundControl.ScreenTools   1.0
 
-FocusScope {
-    id:     _root
-    z:      5000
-    focus:  true
+Drawer {
+    edge:           Qt.RightEdge
+    interactive:    false
 
-    property alias  dialogWidth:     _dialogPanel.width
-    property alias  dialogTitle:     titleLabel.text
-    property alias  dialogComponent: _dialogComponentLoader.sourceComponent
-    property var    viewPanel
+    property var    dialogComponent
+    property string dialogTitle
+    property var    dialogButtons:        StandardButton.NoButton
 
-    property real _defaultTextHeight:   _textMeasure.contentHeight
-    property real _defaultTextWidth:    _textMeasure.contentWidth
+    property real   _defaultTextHeight: _textMeasure.contentHeight
+    property real   _defaultTextWidth:  _textMeasure.contentWidth
 
     function setupDialogButtons(buttons) {
         _acceptButton.visible = false
         _rejectButton.visible = false
-
         // Accept role buttons
         if (buttons & StandardButton.Ok) {
             _acceptButton.text = qsTr("Ok")
@@ -88,93 +85,68 @@ FocusScope {
             _rejectButton.text = qsTr("Abort")
             _rejectButton.visible = true
         }
+
+        if (buttons & StandardButton.Cancel || buttons & StandardButton.Close || buttons & StandardButton.Discard || buttons & StandardButton.Abort || buttons & StandardButton.Ignore) {
+            closePolicy = Popup.NoAutoClose;
+            interactive = false;
+        } else {
+            closePolicy = Popup.CloseOnEscape | Popup.CloseOnPressOutside;
+            interactive = true;
+        }
     }
 
     Connections {
         target: _dialogComponentLoader.item
-
         onHideDialog: {
-            viewPanel.enabled = true
-            _root.destroy()
+            Qt.inputMethod.hide()
+            close()
         }
     }
 
-    QGCPalette { id: _qgcPal; colorGroupEnabled: true }
+    Component.onCompleted: setupDialogButtons(dialogButtons)
+
     QGCLabel { id: _textMeasure; text: "X"; visible: false }
 
-    Rectangle {
-        anchors.top:    parent.top
-        anchors.bottom: parent.bottom
-        anchors.left:   parent.left
-        anchors.right:  _dialogPanel.left
-        opacity:        0.5
-        color:          _qgcPal.window
-        z:              5000
+
+    background: Rectangle {
+        color:  qgcPal.windowShadeDark
     }
 
-    // This is the main dialog panel which is anchored to the right edge
-    Rectangle {
+    // This is the main dialog panel
+    Item {
         id:                 _dialogPanel
-        height:             ScreenTools.availableHeight ? ScreenTools.availableHeight : parent.height
-        anchors.bottom:     parent.bottom
-        anchors.right:      parent.right
-        color:              _qgcPal.windowShadeDark
-
+        anchors.fill:       parent
         Rectangle {
-            id:     _header
-            width:  parent.width
-            height: _acceptButton.visible ? _acceptButton.height : _rejectButton.height
-            color:  _qgcPal.windowShade
-
-            function _hidePanel() {
-                _fullPanel.visible = false
-            }
-
+            id:             _header
+            width:          parent.width
+            height:         _acceptButton.visible ? _acceptButton.height : _rejectButton.height
+            color:          qgcPal.windowShade
             QGCLabel {
-                id:                 titleLabel
                 x:                  _defaultTextWidth
+                text:               dialogTitle
                 height:             parent.height
                 verticalAlignment:	Text.AlignVCenter
             }
-
             QGCButton {
-                id:             _rejectButton
-                anchors.right:  _acceptButton.visible ?  _acceptButton.left : parent.right
-                anchors.bottom: parent.bottom
-
-                onClicked: {
-                    enabled = false // prevent multiple clicks
-                    _dialogComponentLoader.item.reject()
-                    if (!viewPanel.enabled) {
-                        // Dialog was not closed, re-enable button
-                        enabled = true
-                    }
-                }
+                id:                 _rejectButton
+                anchors.right:      _acceptButton.visible ?  _acceptButton.left : parent.right
+                anchors.bottom:     parent.bottom
+                onClicked:          _dialogComponentLoader.item.reject()
             }
-
             QGCButton {
-                id:             _acceptButton
-                anchors.right:  parent.right
-                primary:        true
-
-                onClicked: {
-                    enabled = false // prevent multiple clicks
-                    _dialogComponentLoader.item.accept()
-                    if (!viewPanel.enabled) {
-                        // Dialog was not closed, re-enable button
-                        enabled = true
-                    }
-                }
+                id:                 _acceptButton
+                anchors.right:      parent.right
+                anchors.bottom:     parent.bottom
+                primary:            true
+                onClicked:          _dialogComponentLoader.item.accept()
             }
         }
-
         Item {
-            id:             _spacer
-            width:          10
-            height:         10
-            anchors.top:    _header.bottom
+            id:                     _spacer
+            width:                  10
+            height:                 10
+            anchors.top:            _header.bottom
         }
-
         Loader {
             id:                 _dialogComponentLoader
             anchors.margins:    5
@@ -182,11 +154,10 @@ FocusScope {
             anchors.right:      parent.right
             anchors.top:        _spacer.bottom
             anchors.bottom:     parent.bottom
-            sourceComponent:    _dialogComponent
+            sourceComponent:    dialogComponent
             focus:              true
-
             property bool acceptAllowed: _acceptButton.visible
             property bool rejectAllowed: _rejectButton.visible
         }
-    } // Rectangle - Dialog panel
+    }
 }

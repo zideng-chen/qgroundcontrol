@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -409,15 +409,12 @@ void MissionItem::setParam7(double param)
     }
 }
 
-void MissionItem::setCoordinate(const QGeoCoordinate& coordinate)
-{
-    setParam5(coordinate.latitude());
-    setParam6(coordinate.longitude());
-    setParam7(coordinate.altitude());
-}
-
 QGeoCoordinate MissionItem::coordinate(void) const
 {
+    if(!std::isfinite(param5()) || !std::isfinite(param6())) {
+        //-- If either of these are NAN, return an invalid (QGeoCoordinate::isValid() == false) coordinate
+        return QGeoCoordinate();
+    }
     return QGeoCoordinate(param5(), param6(), param7());
 }
 

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -25,8 +25,6 @@ ColumnLayout {
     property var    fitFunctions
     property bool   showMission:          true
     property bool   showAllItems:         true
-
-    property var _activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
 
     QGCLabel { text: qsTr("Center map on:") }
 
@@ -53,12 +51,23 @@ ColumnLayout {
     }
 
     QGCButton {
-        text:               qsTr("Home")
+        text:               qsTr("Launch")
         Layout.fillWidth:   true
 
         onClicked: {
             dropPanel.hide()
             map.center = fitFunctions.fitHomePosition()
+        }
+    }
+
+    QGCButton {
+        text:               qsTr("Vehicle")
+        Layout.fillWidth:   true
+        enabled:            globals.activeVehicle && globals.activeVehicle.coordinate.isValid
+
+        onClicked: {
+            dropPanel.hide()
+            map.center = globals.activeVehicle.coordinate
         }
     }
 
@@ -74,13 +83,12 @@ ColumnLayout {
     }
 
     QGCButton {
-        text:               qsTr("Vehicle")
+        text:               qsTr("Specified Location")
         Layout.fillWidth:   true
-        enabled:            _activeVehicle && _activeVehicle.coordinate.isValid
 
         onClicked: {
             dropPanel.hide()
-            map.center = activeVehicle.coordinate
+            map.centerToSpecifiedLocation()
         }
     }
 } // Column

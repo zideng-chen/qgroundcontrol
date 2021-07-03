@@ -1,21 +1,21 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-
 import QtQuick          2.3
 import QtQuick.Controls 1.2
 import QtQuick.Dialogs  1.2
+import QtQuick.Layouts  1.2
 
-import QGroundControl                       1.0
-import QGroundControl.Controls              1.0
-import QGroundControl.ScreenTools           1.0
-import QGroundControl.Palette               1.0
+import QGroundControl               1.0
+import QGroundControl.Controls      1.0
+import QGroundControl.ScreenTools   1.0
+import QGroundControl.Palette       1.0
 
 Rectangle {
     id:                 _linkRoot
@@ -23,26 +23,34 @@ Rectangle {
     anchors.fill:       parent
     anchors.margins:    ScreenTools.defaultFontPixelWidth
 
-    property var _currentSelection: null
-    property int _firstColumn:      ScreenTools.defaultFontPixelWidth * 12
-    property int _secondColumn:     ScreenTools.defaultFontPixelWidth * 30
-
-    ExclusiveGroup { id: linkGroup }
+    property var _currentSelection:     null
+    property int _firstColumnWidth:     ScreenTools.defaultFontPixelWidth * 12
+    property int _secondColumnWidth:    ScreenTools.defaultFontPixelWidth * 30
+    property int _rowSpacing:           ScreenTools.defaultFontPixelHeight / 2
+    property int _colSpacing:           ScreenTools.defaultFontPixelWidth / 2
 
     QGCPalette {
         id:                 qgcPal
         colorGroupEnabled:  enabled
     }
 
-    function openCommSettings(lconf) {
-        settingLoader.linkConfig = lconf
-        settingLoader.sourceComponent = commSettings
-        settingLoader.visible = true
+    function openCommSettings(originalLinkConfig) {
+        settingsLoader.originalLinkConfig = originalLinkConfig
+        if (originalLinkConfig) {
+            // Editing existing link config
+            settingsLoader.editingConfig = QGroundControl.linkManager.startConfigurationEditing(originalLinkConfig)
+        } else {
+            // Create new link configuration
+            settingsLoader.editingConfig = QGroundControl.linkManager.createConfiguration(ScreenTools.isSerialAvailable ? LinkConfiguration.TypeSerial : LinkConfiguration.TypeUdp, "")
+        }
+        settingsLoader.sourceComponent = commSettings
     }
 
-    function closeCommSettings() {
-        settingLoader.visible = false
-        settingLoader.sourceComponent = null
+    Component.onDestruction: {
+        if (settingsLoader.sourceComponent) {
+            settingsLoader.sourceComponent = null
+            QGroundControl.linkManager.cancelConfigurationEditing(settingsLoader.editingConfig)
+        }
     }
 
     QGCFlickable {
@@ -65,9 +73,8 @@ Rectangle {
                     anchors.horizontalCenter:   settingsColumn.horizontalCenter
                     width:                      _linkRoot.width * 0.5
                     text:                       object.name
-                    exclusiveGroup:             linkGroup
+                    autoExclusive:              true
                     visible:                    !object.dynamic
-
                     onClicked: {
                         checked = true
                         _currentSelection = object
@@ -87,10 +94,8 @@ Rectangle {
             width:      ScreenTools.defaultFontPixelWidth * 10
             text:       qsTr("Delete")
             enabled:    _currentSelection && !_currentSelection.dynamic
-            onClicked: {
-                if(_currentSelection)
-                    deleteDialog.visible = true
-            }
+            onClicked:  deleteDialog.visible = true
+
             MessageDialog {
                 id:         deleteDialog
                 visible:    false
@@ -98,51 +103,48 @@ Rectangle {
                 standardButtons: StandardButton.Yes | StandardButton.No
                 title:      qsTr("Remove Link Configuration")
                 text:       _currentSelection ? qsTr("Remove %1. Is this really what you want?").arg(_currentSelection.name) : ""
+
                 onYes: {
-                    if(_currentSelection)
-                        QGroundControl.linkManager.removeConfiguration(_currentSelection)
+                    QGroundControl.linkManager.removeConfiguration(_currentSelection)
+                    _currentSelection = null
                     deleteDialog.visible = false
                 }
-                onNo: {
-                    deleteDialog.visible = false
-                }
+                onNo: deleteDialog.visible = false
             }
         }
         QGCButton {
             text:       qsTr("Edit")
             enabled:    _currentSelection && !_currentSelection.link
-            onClicked: {
-                _linkRoot.openCommSettings(_currentSelection)
-            }
+            onClicked:  _linkRoot.openCommSettings(_currentSelection)
         }
         QGCButton {
             text:       qsTr("Add")
-            onClicked: {
-                _linkRoot.openCommSettings(null)
-            }
+            onClicked:  _linkRoot.openCommSettings(null)
         }
         QGCButton {
             text:       qsTr("Connect")
             enabled:    _currentSelection && !_currentSelection.link
-            onClicked: {
-                QGroundControl.linkManager.createConnectedLink(_currentSelection)
-            }
+            onClicked:  QGroundControl.linkManager.createConnectedLink(_currentSelection)
         }
         QGCButton {
             text:       qsTr("Disconnect")
             enabled:    _currentSelection && _currentSelection.link
-            onClicked: {
-                QGroundControl.linkManager.disconnectLink(_currentSelection.link, false)
-            }
+            onClicked:  _currentSelection.link.disconnect()
+        }
+        QGCButton {
+            text:       qsTr("MockLink Options")
+            visible:    _currentSelection && _currentSelection.link && _currentSelection.link.isMockLink
+            onClicked:  mainWindow.showPopupDialogFromSource("qrc:/unittest/MockLinkOptionsDlg.qml", { link: _currentSelection.link })
         }
     }
 
     Loader {
-        id:             settingLoader
+        id:             settingsLoader
         anchors.fill:   parent
-        visible:        false
-        property var linkConfig: null
-        property var editConfig: null
+        visible:        sourceComponent ? true : false
+
+        property var originalLinkConfig:    null
+        property var editingConfig:      null
     }
 
     //---------------------------------------------
@@ -150,187 +152,117 @@ Rectangle {
     Component {
         id: commSettings
         Rectangle {
+            id:             settingsRect
             color:          qgcPal.window
             anchors.fill:   parent
-            Component.onCompleted: {
-                // If editing, create copy for editing
-                if(linkConfig) {
-                    editConfig = QGroundControl.linkManager.startConfigurationEditing(linkConfig)
-                } else {
-                    // Create new link configuration
-                    if(ScreenTools.isiOS)
-                        editConfig = QGroundControl.linkManager.createConfiguration(LinkConfiguration.TypeUdp, "Unnamed")
-                    else
-                        editConfig = QGroundControl.linkManager.createConfiguration(LinkConfiguration.TypeSerial, "Unnamed")
-                }
-            }
-            Component.onDestruction: {
-                if(editConfig) {
-                    QGroundControl.linkManager.cancelConfigurationEditing(editConfig)
-                    editConfig = null
-                }
-            }
+            property real   _panelWidth:    width * 0.8
+
             QGCFlickable {
                 id:                 settingsFlick
                 clip:               true
-                anchors.top:        parent.top
-                width:              parent.width
-                height:             parent.height - commButtonRow.height
+                anchors.fill:       parent
                 anchors.margins:    ScreenTools.defaultFontPixelWidth
-                contentHeight:      commSettingsColumn.height
-                contentWidth:       _linkRoot.width
-                flickableDirection: Flickable.VerticalFlick
-                boundsBehavior:     Flickable.StopAtBounds
-                Column {
-                    id:                 commSettingsColumn
-                    width:              _linkRoot.width
-                    anchors.margins:    ScreenTools.defaultFontPixelWidth
-                    spacing:            ScreenTools.defaultFontPixelHeight / 2
-                    QGCLabel {
-                        text:   linkConfig ? qsTr("Edit Link Configuration Settings (WIP)") : qsTr("Create New Link Configuration (WIP)")
-                        font.pointSize: ScreenTools.mediumFontPointSize
-                    }
-                    Rectangle {
-                        height: 1
-                        width:  parent.width
-                        color:  qgcPal.button
-                    }
-                    Item {
-                        height: ScreenTools.defaultFontPixelHeight / 2
-                        width:  parent.width
-                    }
-                    Row {
-                        spacing:    ScreenTools.defaultFontPixelWidth
-                        QGCLabel {
-                            text:   qsTr("Name:")
-                            width:  _firstColumn
-                            anchors.verticalCenter: parent.verticalCenter
+                contentHeight:      mainLayout.height
+                contentWidth:       mainLayout.width
+
+                ColumnLayout {
+                    id:         mainLayout
+                    spacing:    _rowSpacing
+
+                    QGCGroupBox {
+                        title: originalLinkConfig ? qsTr("Edit Link Configuration Settings") : qsTr("Create New Link Configuration")
+
+                        ColumnLayout {
+                            spacing: _rowSpacing
+
+                            GridLayout {
+                                columns:        2
+                                columnSpacing:  _colSpacing
+                                rowSpacing:     _rowSpacing
+
+                                QGCLabel { text: qsTr("Name") }
+                                QGCTextField {
+                                    id:                     nameField
+                                    Layout.preferredWidth:  _secondColumnWidth
+                                    Layout.fillWidth:       true
+                                    text:                   editingConfig.name
+                                    placeholderText:        qsTr("Enter name")
+                                }
+
+                                QGCCheckBox {
+                                    Layout.columnSpan:  2
+                                    text:               qsTr("Automatically Connect on Start")
+                                    checked:            editingConfig.autoConnect
+                                    onCheckedChanged:   editingConfig.autoConnect = checked
+                                }
+
+                                QGCCheckBox {
+                                    Layout.columnSpan:  2
+                                    text:               qsTr("High Latency")
+                                    checked:            editingConfig.highLatency
+                                    onCheckedChanged:   editingConfig.highLatency = checked
+                                }
+
+                                QGCLabel { text: qsTr("Type") }
+                                QGCComboBox {
+                                    Layout.preferredWidth:  _secondColumnWidth
+                                    Layout.fillWidth:       true
+                                    enabled:                originalLinkConfig == null
+                                    model:                  QGroundControl.linkManager.linkTypeStrings
+                                    currentIndex:           editingConfig.linkType
+
+                                    onActivated: {
+                                        if (index !== editingConfig.linkType) {
+                                            // Save current name
+                                            var name = nameField.text
+                                            // Create new link configuration
+                                            editingConfig = QGroundControl.linkManager.createConfiguration(index, name)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Loader {
+                                id:     linksettingsLoader
+                                source: subEditConfig.settingsURL
+
+                                property var subEditConfig: editingConfig
+                            }
                         }
-                        QGCTextField {
-                            id:     nameField
-                            text:   editConfig ? editConfig.name : ""
-                            width:  _secondColumn
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
                     }
-                    Row {
-                        spacing:        ScreenTools.defaultFontPixelWidth
-                        QGCLabel {
-                            text:       qsTr("Type:")
-                            width:      _firstColumn
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        //-----------------------------------------------------
-                        // When editing, you can't change the link type
-                        QGCLabel {
-                            text:       linkConfig ? QGroundControl.linkManager.linkTypeStrings[linkConfig.linkType] : ""
-                            visible:    linkConfig != null
-                            width:      _secondColumn
-                            anchors.verticalCenter: parent.verticalCenter
-                            Component.onCompleted: {
-                                if(linkConfig != null) {
-                                    linkSettingLoader.source  = linkConfig.settingsURL
-                                    linkSettingLoader.visible = true
+
+                    RowLayout {
+                        Layout.alignment:   Qt.AlignHCenter
+                        spacing:            _colSpacing
+
+                        QGCButton {
+                            width:      ScreenTools.defaultFontPixelWidth * 10
+                            text:       qsTr("OK")
+                            enabled:    nameField.text !== ""
+
+                            onClicked: {
+                                // Save editing
+                                linksettingsLoader.item.saveSettings()
+                                editingConfig.name = nameField.text
+                                settingsLoader.sourceComponent = null
+                                if (originalLinkConfig) {
+                                    QGroundControl.linkManager.endConfigurationEditing(originalLinkConfig, editingConfig)
+                                } else {
+                                    // If it was edited, it's no longer "dynamic"
+                                    editingConfig.dynamic = false
+                                    QGroundControl.linkManager.endCreateConfiguration(editingConfig)
                                 }
                             }
                         }
-                        //-----------------------------------------------------
-                        // When creating, select a link type
-                        QGCComboBox {
-                            id:             linkTypeCombo
-                            width:          _secondColumn
-                            visible:        linkConfig == null
-                            model:          QGroundControl.linkManager.linkTypeStrings
-                            anchors.verticalCenter: parent.verticalCenter
-                            onActivated: {
-                                if (index != -1 && index !== editConfig.linkType) {
-                                    // Destroy current panel
-                                    linkSettingLoader.source = ""
-                                    linkSettingLoader.visible = false
-                                    // Save current name
-                                    var name = editConfig.name
-                                    // Discard link configuration (old type)
-                                    QGroundControl.linkManager.cancelConfigurationEditing(editConfig)
-                                    // Create new link configuration
-                                    editConfig = QGroundControl.linkManager.createConfiguration(index, name)
-                                    // Load appropriate configuration panel
-                                    linkSettingLoader.source  = editConfig.settingsURL
-                                    linkSettingLoader.visible = true
-                                }
-                            }
-                            Component.onCompleted: {
-                                if(linkConfig == null) {
-                                    linkTypeCombo.currentIndex = 0
-                                    linkSettingLoader.source   = editConfig.settingsURL
-                                    linkSettingLoader.visible  = true
-                                }
+
+                        QGCButton {
+                            width:      ScreenTools.defaultFontPixelWidth * 10
+                            text:       qsTr("Cancel")
+                            onClicked: {
+                                settingsLoader.sourceComponent = null
+                                QGroundControl.linkManager.cancelConfigurationEditing(settingsLoader.editingConfig)
                             }
                         }
-                    }
-                    Item {
-                        height: ScreenTools.defaultFontPixelHeight * 0.5
-                        width:  parent.width
-                    }
-                    //-- Auto Connect on Start
-                    QGCCheckBox {
-                        text:       "Automatically Connect on Start"
-                        checked:    false
-                        visible:    editConfig ? editConfig.autoConnectAllowed : false
-                        onCheckedChanged: {
-                            if(editConfig) {
-                                editConfig.autoConnect = checked
-                            }
-                        }
-                        Component.onCompleted: {
-                            if(editConfig)
-                                checked = editConfig.autoConnect
-                        }
-                    }
-                    Item {
-                        height: ScreenTools.defaultFontPixelHeight
-                        width:  parent.width
-                    }
-                    Loader {
-                        id:             linkSettingLoader
-                        width:          parent.width
-                        visible:        false
-                        property var subEditConfig: editConfig
-                    }
-                }
-            }
-            Row {
-                id:                 commButtonRow
-                spacing:            ScreenTools.defaultFontPixelWidth
-                anchors.margins:    ScreenTools.defaultFontPixelWidth
-                anchors.bottom:     parent.bottom
-                anchors.right:      parent.right
-                QGCButton {
-                    width:      ScreenTools.defaultFontPixelWidth * 10
-                    text:       qsTr("OK")
-                    enabled:    nameField.text !== ""
-                    onClicked: {
-                        // Save editting
-                        linkSettingLoader.item.saveSettings()
-                        editConfig.name = nameField.text
-                        if(linkConfig) {
-                            QGroundControl.linkManager.endConfigurationEditing(linkConfig, editConfig)
-                        } else {
-                            // If it was edited, it's no longer "dynamic"
-                            editConfig.dynamic = false
-                            QGroundControl.linkManager.endCreateConfiguration(editConfig)
-                        }
-                        linkSettingLoader.source = ""
-                        editConfig = null
-                        _linkRoot.closeCommSettings()
-                    }
-                }
-                QGCButton {
-                    width:      ScreenTools.defaultFontPixelWidth * 10
-                    text:       qsTr("Cancel")
-                    onClicked: {
-                        QGroundControl.linkManager.cancelConfigurationEditing(editConfig)
-                        editConfig = null
-                        _linkRoot.closeCommSettings()
                     }
                 }
             }

@@ -1,16 +1,14 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-
-import QtQuick          2.3
-import QtQuick.Controls 1.2
-import QtQuick.Layouts  1.2
+import QtQuick          2.11
+import QtQuick.Layouts  1.11
 
 import QGroundControl                       1.0
 import QGroundControl.Controls              1.0
@@ -21,10 +19,12 @@ import QGroundControl.Palette               1.0
 //-------------------------------------------------------------------------
 //-- Telemetry RSSI
 Item {
+    id:             _root
     anchors.top:    parent.top
     anchors.bottom: parent.bottom
-    width:          _hasTelemetry ? telemIcon.width * 1.1 : 0
-    visible:        _hasTelemetry
+    width:          telemIcon.width * 1.1
+
+    property bool showIndicator: _hasTelemetry
 
     property var  _activeVehicle:   QGroundControl.multiVehicleManager.activeVehicle
     property bool _hasTelemetry:    _activeVehicle ? _activeVehicle.telemetryLRSSI !== 0 : false
@@ -71,11 +71,6 @@ Item {
                     QGCLabel { text: _activeVehicle.telemetryRNoise }
                 }
             }
-            Component.onCompleted: {
-                var pos = mapFromItem(toolBar, centerX - (width / 2), toolBar.height)
-                x = pos.x
-                y = pos.y + ScreenTools.defaultFontPixelHeight
-            }
         }
     }
     QGCColoredImage {
@@ -91,8 +86,7 @@ Item {
     MouseArea {
         anchors.fill: parent
         onClicked: {
-            var centerX = mapToItem(toolBar, x, y).x + (width / 2)
-            mainWindow.showPopUp(telemRSSIInfo, centerX)
+            mainWindow.showIndicatorPopup(_root, telemRSSIInfo)
         }
     }
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -17,11 +17,16 @@ class UnitsSettings : public SettingsGroup
     Q_OBJECT
     
 public:
-    UnitsSettings(QObject* parent = NULL);
+    UnitsSettings(QObject* parent = nullptr);
 
-    enum DistanceUnits {
-        DistanceUnitsFeet = 0,
-        DistanceUnitsMeters
+    enum HorizontalDistanceUnits {
+        HorizontalDistanceUnitsFeet = 0,
+        HorizontalDistanceUnitsMeters
+    };
+
+    enum VerticalDistanceUnits {
+        VerticalDistanceUnitsFeet = 0,
+        VerticalDistanceUnitsMeters
     };
 
     enum AreaUnits {
@@ -46,33 +51,28 @@ public:
         TemperatureUnitsFarenheit,
     };
 
-    Q_ENUMS(DistanceUnits)
-    Q_ENUMS(AreaUnits)
-    Q_ENUMS(SpeedUnits)
-    Q_ENUMS(TemperatureUnits)
+    enum WeightUnits {
+        WeightUnitsGrams = 0,
+        WeightUnitsKg,
+        WeightUnitsOz,
+        WeightUnitsLbs
+    };
 
-    Q_PROPERTY(Fact* distanceUnits                      READ distanceUnits                      CONSTANT)
-    Q_PROPERTY(Fact* areaUnits                          READ areaUnits                          CONSTANT)
-    Q_PROPERTY(Fact* speedUnits                         READ speedUnits                         CONSTANT)
-    Q_PROPERTY(Fact* temperatureUnits                   READ temperatureUnits                   CONSTANT)
+    Q_ENUM(HorizontalDistanceUnits)
+    Q_ENUM(VerticalDistanceUnits)
+    Q_ENUM(AreaUnits)
+    Q_ENUM(SpeedUnits)
+    Q_ENUM(TemperatureUnits)
+    Q_ENUM(WeightUnits)
 
-    Fact* distanceUnits                     (void);
-    Fact* areaUnits                         (void);
-    Fact* speedUnits                        (void);
-    Fact* temperatureUnits                  (void);
+    DEFINE_SETTING_NAME_GROUP()
 
-    static const char* unitsSettingsGroupName;
-
-    static const char* distanceUnitsSettingsName;
-    static const char* areaUnitsSettingsName;
-    static const char* speedUnitsSettingsName;
-    static const char* temperatureUnitsSettingsName;
-
-private:
-    SettingsFact* _distanceUnitsFact;
-    SettingsFact* _areaUnitsFact;
-    SettingsFact* _speedUnitsFact;
-    SettingsFact* _temperatureUnitsFact;
+    DEFINE_SETTINGFACT(horizontalDistanceUnits)
+    DEFINE_SETTINGFACT(verticalDistanceUnits)
+    DEFINE_SETTINGFACT(areaUnits)
+    DEFINE_SETTINGFACT(speedUnits)
+    DEFINE_SETTINGFACT(temperatureUnits)
+    DEFINE_SETTINGFACT(weightUnits)
 };
 
 #endif

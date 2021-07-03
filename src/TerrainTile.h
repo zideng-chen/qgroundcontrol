@@ -20,26 +20,11 @@ public:
     ~TerrainTile();
 
     /**
-    * Constructor from json doc with elevation data (either from file or web)
-    *
-    * @param document
-    */
-    TerrainTile(QJsonDocument document);
-
-    /**
     * Constructor from serialized elevation data (either from file or web)
     *
     * @param document
     */
     TerrainTile(QByteArray byteArray);
-
-    /**
-    * Check for whether a coordinate lies within this tile
-    *
-    * @param coordinate
-    * @return true if within
-    */
-    bool isIn(const QGeoCoordinate& coordinate) const;
 
     /**
     * Check whether valid data is loaded
@@ -84,26 +69,28 @@ public:
     */
     QGeoCoordinate centerCoordinate(void) const;
 
-    /**
-    * Serialize data
-    *
-    * @return serialized data
-    */
-    static QByteArray serialize(QByteArray input);
+    static QByteArray serializeFromAirMapJson(QByteArray input);
 
-    /// Approximate spacing of the elevation data measurement points
-    static constexpr double terrainAltitudeSpacing = 30.0;
+    static constexpr double tileSizeDegrees         = 0.01;         ///< Each terrain tile represents a square area .01 degrees in lat/lon
+    static constexpr double tileValueSpacingDegrees = 1.0 / 3600;   ///< 1 Arc-Second spacing of elevation values
+    static constexpr double tileValueSpacingMeters  = 30.0;
 
 private:
-    inline int _latToDataIndex(double latitude) const;
-    inline int _lonToDataIndex(double longitude) const;
+    typedef struct {
+        double  swLat,swLon, neLat, neLon;
+        int16_t minElevation;
+        int16_t maxElevation;
+        double  avgElevation;
+        int16_t gridSizeLat;
+        int16_t gridSizeLon;
+    } TileInfo_t;
 
     QGeoCoordinate      _southWest;                                     /// South west corner of the tile
     QGeoCoordinate      _northEast;                                     /// North east corner of the tile
 
     int16_t             _minElevation;                                  /// Minimum elevation in tile
     int16_t             _maxElevation;                                  /// Maximum elevation in tile
-    float               _avgElevation;                                  /// Average elevation of the tile
+    double              _avgElevation;                                  /// Average elevation of the tile
 
     int16_t**           _data;                                          /// 2D elevation data array
     int16_t             _gridSizeLat;                                   /// data grid size in latitude direction

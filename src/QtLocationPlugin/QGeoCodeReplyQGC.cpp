@@ -40,7 +40,7 @@
 ** 2015.4.4
 ** Adapted for use with QGroundControl
 **
-** Gus Grubba <mavlink@grubba.com>
+** Gus Grubba <gus@auterion.com>
 **
 ****************************************************************************/
 
@@ -158,7 +158,7 @@ JasonMonger kMonger;
 QGeoCodeReplyQGC::QGeoCodeReplyQGC(QNetworkReply *reply, QObject *parent)
 :   QGeoCodeReply(parent), m_reply(reply)
 {
-    connect(m_reply, SIGNAL(finished()), this, SLOT(networkReplyFinished()));
+    connect(m_reply, &QNetworkReply::finished, this, &QGeoCodeReplyQGC::networkReplyFinished);
     connect(m_reply, SIGNAL(error(QNetworkReply::NetworkError)),
             this, SLOT(networkReplyError(QNetworkReply::NetworkError)));
 

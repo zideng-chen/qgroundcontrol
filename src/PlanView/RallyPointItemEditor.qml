@@ -1,6 +1,6 @@
-import QtQuick          2.3
-import QtQuick.Controls 1.2
-import QtQuick.Layouts  1.2
+import QtQuick                      2.11
+import QtQuick.Controls             2.4
+import QtQuick.Layouts              1.11
 
 import QGroundControl.ScreenTools   1.0
 import QGroundControl.Vehicle       1.0
@@ -14,11 +14,13 @@ Rectangle {
     color:  _currentItem ? qgcPal.missionItemEditor : qgcPal.windowShade
     radius: _radius
 
+    signal clicked()
+
     property var rallyPoint ///< RallyPoint object associated with editor
     property var controller ///< RallyPointController
 
     property bool   _currentItem:       rallyPoint ? rallyPoint === controller.currentRallyPoint : false
-    property color  _outerTextColor:    _currentItem ? "black" : qgcPal.text
+    property color  _outerTextColor:    qgcPal.text // _currentItem ? "black" : qgcPal.text
 
     readonly property real  _margin:            ScreenTools.defaultFontPixelWidth / 2
     readonly property real  _radius:            ScreenTools.defaultFontPixelWidth / 2
@@ -50,7 +52,7 @@ Rectangle {
             color:                  _outerTextColor
         }
 
-        Image {
+        QGCColoredImage {
             id:                     hamburger
             anchors.rightMargin:    _margin
             anchors.right:          parent.right
@@ -59,15 +61,16 @@ Rectangle {
             height:                 width
             sourceSize.height:      height
             source:                 "qrc:/qmlimages/Hamburger.svg"
+            color:                  qgcPal.text
 
             MouseArea {
                 anchors.fill:   parent
                 onClicked:      hamburgerMenu.popup()
 
-                Menu {
+                QGCMenu {
                     id: hamburgerMenu
 
-                    MenuItem {
+                    QGCMenuItem {
                         text:           qsTr("Delete")
                         onTriggered:    controller.removePoint(rallyPoint)
                     }
@@ -100,7 +103,6 @@ Rectangle {
 
             Repeater {
                 model: rallyPoint ? rallyPoint.textFieldFacts : 0
-
                 QGCLabel {
                     text: modelData.name + ":"
                 }
@@ -108,7 +110,6 @@ Rectangle {
 
             Repeater {
                 model: rallyPoint ? rallyPoint.textFieldFacts : 0
-
                 FactTextField {
                     Layout.fillWidth:   true
                     showUnits:          true

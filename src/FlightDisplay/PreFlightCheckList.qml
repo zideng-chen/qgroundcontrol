@@ -7,104 +7,150 @@
  *
  ****************************************************************************/
 
-import QtQuick                      2.3
+import QtQuick                      2.11
+import QtQuick.Controls             2.4
 import QtQml.Models                 2.1
+import QtQuick.Layouts              1.12
 
 import QGroundControl               1.0
-import QGroundControl.FlightDisplay 1.0
 import QGroundControl.ScreenTools   1.0
 import QGroundControl.Controls      1.0
-import QGroundControl.Palette       1.0
+import QGroundControl.FlightDisplay 1.0
 import QGroundControl.Vehicle       1.0
 
-// This class stores the data and functions of the check list but NOT the GUI (which is handled somewhere else).
-Item {
-    // Properties
-    property ObjectModel    checkListItems:         _checkListItems
-    property var            _activeVehicle:         QGroundControl.multiVehicleManager.activeVehicle
-    property int            _checkState:            _activeVehicle ? (_activeVehicle.armed ? 1 + (buttonActuators.state + buttonMotors.state + buttonMission.state + buttonSoundOutput.state) / 4 / 4 : 0) : 0 ; // Shows progress of checks inside the checklist - unlocks next check steps in groups
+ColumnLayout {
+    spacing: 0.8 * ScreenTools.defaultFontPixelWidth
 
-    function reset() {
-        buttonHardware.reset();
-        buttonBattery.reset();
-        buttonRC.reset();
-        buttonActuators.reset();
-        buttonMotors.reset();
-        buttonMission.reset();
-        buttonSoundOutput.reset();
-        buttonPayload.reset();
-        buttonWeather.reset();
-        buttonFlightAreaFree.reset();
+    property real _verticalMargin: ScreenTools.defaultFontPixelHeight / 2
+
+    Loader {
+        id:     modelContainer
+        source: "/checklists/DefaultChecklist.qml"
     }
 
-    // Check list item data
-    ObjectModel {
-        id: _checkListItems
+    property bool allChecksPassed:  false
+    property var  vehicleCopy:      globals.activeVehicle
 
-        // Standard check list items (group 0) - Available from the start
-        PreFlightCheckButton {
-            id:             buttonHardware
-            name:           qsTr("Hardware")
-            manualText:     qsTr("Props mounted? Wings secured? Tail secured?")
+    onVehicleCopyChanged: {
+        if (checkListRepeater.model) {
+            checkListRepeater.model.reset()
         }
-        PreFlightBatteryCheck {
-             id:                buttonBattery
-             failureVoltage:    40
-        }
-        PreFlightSensorsCheck {
-             id: buttonSensors
-        }
-        PreFlightRCCheck {
-            id: buttonRC
-        }
-        PreFlightAHRSCheck {
-            id: buttonEstimator
-        }
+    }
 
-        // Check list item group 1 - Require arming
-        QGCLabel {text:qsTr("<i>Please arm the vehicle here.</i>") ; opacity: 0.2+0.8*(QGroundControl.multiVehicleManager.vehicles.count > 0) ; anchors.horizontalCenter:buttonHardware.horizontalCenter ; anchors.topMargin:40 ; anchors.bottomMargin:40;}
-        PreFlightCheckButton {
-           id:              buttonActuators
-           name:            qsTr("Actuators")
-           group:           1
-           manualText:      qsTr("Move all control surfaces. Did they work properly?")
+    onAllChecksPassedChanged: {
+        if (allChecksPassed) {
+            globals.activeVehicle.checkListState = Vehicle.CheckListPassed
+        } else {
+            globals.activeVehicle.checkListState = Vehicle.CheckListFailed
         }
-        PreFlightCheckButton {
-           id:              buttonMotors
-           name:            qsTr("Motors")
-           group:           1
-           manualText:      qsTr("Propellers free? Then throttle up gently. Working properly?")
-        }
-        PreFlightCheckButton {
-           id:          buttonMission
-           name:        qsTr("Mission")
-           group:       1
-           manualText:  qsTr("Please confirm mission is valid (waypoints valid, no terrain collision).")
-        }
-        PreFlightSoundCheck {
-           id:      buttonSoundOutput
-           group:   1
+    }
+
+    function _handleGroupPassedChanged(index, passed) {
+        if (passed) {
+            // Collapse current group
+            var group = checkListRepeater.itemAt(index)
+            group._checked = false
+            // Expand next group
+            if (index + 1 < checkListRepeater.count) {
+                group = checkListRepeater.itemAt(index + 1)
+                group.enabled = true
+                group._checked = true
+            }
         }
 
-        // Check list item group 2 - Final checks before launch
-        QGCLabel {text:qsTr("<i>Last preparations before launch</i>") ; opacity : 0.2+0.8*(_checkState >= 2); anchors.horizontalCenter:buttonHardware.horizontalCenter}
-        PreFlightCheckButton {
-           id:          buttonPayload
-           name:        qsTr("Payload")
-           group:       2
-           manualText:  qsTr("Configured and started? Payload lid closed?")
+        // Walk the list and check if any group is failing
+        var allPassed = true
+        for (var i=0; i < checkListRepeater.count; i++) {
+            if (!checkListRepeater.itemAt(i).passed) {
+                allPassed = false
+                break
+            }
         }
-        PreFlightCheckButton {
-           id:          buttonWeather
-           name:        "Wind & weather"
-           group:       2
-           manualText:  qsTr("OK for your platform? Lauching into the wind?")
+        allChecksPassed = allPassed;
+    }
+
+    //-- Pick a checklist model that matches the current airframe type (if any)
+    function _updateModel() {
+        var vehicle = globals.activeVehicle
+        if (!vehicle) {
+            vehicle = QGroundControl.multiVehicleManager.offlineEditingVehicle
         }
-        PreFlightCheckButton {
-           id:          buttonFlightAreaFree
-           name:        qsTr("Flight area")
-           group:       2
-           manualText:  qsTr("Launch area and path free of obstacles/people?")
+
+        if(vehicle.multiRotor) {
+            modelContainer.source = "/checklists/MultiRotorChecklist.qml"
+        } else if(vehicle.vtol) {
+            modelContainer.source = "/checklists/VTOLChecklist.qml"
+        } else if(vehicle.rover) {
+            modelContainer.source = "/checklists/RoverChecklist.qml"
+        } else if(vehicle.sub) {
+            modelContainer.source = "/checklists/SubChecklist.qml"
+        } else if(vehicle.fixedWing) {
+            modelContainer.source = "/checklists/FixedWingChecklist.qml"
+        } else {
+            modelContainer.source = "/checklists/DefaultChecklist.qml"
         }
-    } // Object Model
+        return
+    }
+
+    Component.onCompleted: {
+        _updateModel()
+    }
+
+    onVisibleChanged: {
+        if(globals.activeVehicle) {
+            if(visible) {
+                _updateModel()
+            }
+        }
+    }
+
+    // We delay the updates when a group passes so the user can see all items green for a moment prior to hiding
+    Timer {
+        id:         delayedGroupPassed
+        interval:   750
+
+        property int index
+
+        onTriggered: _handleGroupPassedChanged(index, true /* passed */)
+    }
+
+    function groupPassedChanged(index, passed) {
+        if (passed) {
+            delayedGroupPassed.index = index
+            delayedGroupPassed.restart()
+        } else {
+            _handleGroupPassedChanged(index, passed)
+        }
+    }
+
+    // Header/title of checklist
+    RowLayout {
+        Layout.fillWidth:   true
+        height:             1.75 * ScreenTools.defaultFontPixelHeight
+        spacing:            0
+
+        QGCLabel {
+            Layout.fillWidth:   true
+            text:               allChecksPassed ? qsTr("(Passed)") : qsTr("In Progress")
+            font.pointSize:     ScreenTools.mediumFontPointSize
+        }
+        QGCButton {
+            width:              1.2 * ScreenTools.defaultFontPixelHeight
+            height:             1.2 * ScreenTools.defaultFontPixelHeight
+            Layout.alignment:   Qt.AlignVCenter
+            onClicked:          checkListRepeater.model.reset()
+
+            QGCColoredImage {
+                source:         "/qmlimages/MapSyncBlack.svg"
+                color:          qgcPal.buttonText
+                anchors.fill:   parent
+            }
+        }
+    }
+
+    // All check list items
+    Repeater {
+        id:     checkListRepeater
+        model:  modelContainer.item.model
+    }
 }

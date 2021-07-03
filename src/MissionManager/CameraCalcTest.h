@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -10,8 +10,9 @@
 #pragma once
 
 #include "UnitTest.h"
-#include "MultiSignalSpy.h"
+#include "MultiSignalSpyV2.h"
 #include "CameraCalc.h"
+#include "PlanMasterController.h"
 
 #include <QGeoCoordinate>
 
@@ -27,28 +28,13 @@ protected:
     void cleanup(void) final;
     
 private slots:
-    void _testDirty(void);
+    void _testDirty             (void);
+    void _testAdjustedFootprint (void);
+    void _testAltDensityRecalc  (void);
 
 private:
-    enum {
-        dirtyChangedIndex = 0,
-        imageFootprintSideChangedIndex,
-        imageFootprintFrontalChangedIndex,
-        distanceToSurfaceRelativeChangedIndex,
-        maxSignalIndex
-    };
-
-    enum {
-        dirtyChangedMask =                      1 << dirtyChangedIndex,
-        imageFootprintSideChangedMask =         1 << imageFootprintSideChangedIndex,
-        imageFootprintFrontalChangedMask =      1 << imageFootprintFrontalChangedIndex,
-        distanceToSurfaceRelativeChangedMask =  1 << distanceToSurfaceRelativeChangedIndex,
-    };
-
-    static const size_t _cSignals = maxSignalIndex;
-    const char*         _rgSignals[_cSignals];
-
-    Vehicle*        _offlineVehicle;
-    MultiSignalSpy* _multiSpy;
-    CameraCalc*     _cameraCalc;
+    PlanMasterController*   _masterController   = nullptr;
+    Vehicle*                _controllerVehicle  = nullptr;
+    MultiSignalSpyV2*       _multiSpy           = nullptr;
+    CameraCalc*             _cameraCalc         = nullptr;
 };

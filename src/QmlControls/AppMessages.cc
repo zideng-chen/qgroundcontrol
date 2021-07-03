@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -76,6 +76,8 @@ void AppLogModel::writeMessages(const QString dest_file)
             QTextStream out(&file);
             out << writebuffer;
             success = out.status() == QTextStream::Ok;
+        } else {
+            qWarning() << "AppLogModel::writeMessages write failed:" << file.errorString();
         }
         emit debug_model->writeFinished(success);
     });
@@ -103,7 +105,7 @@ void AppLogModel::threadsafeLog(const QString message)
 
             _logFile.setFileName(saveFilePath);
             if (!_logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-                qgcApp()->showMessage(tr("Open console log output file failed %1 : %2").arg(_logFile.fileName()).arg(_logFile.errorString()));
+                qgcApp()->showAppMessage(tr("Open console log output file failed %1 : %2").arg(_logFile.fileName()).arg(_logFile.errorString()));
             }
         }
     }

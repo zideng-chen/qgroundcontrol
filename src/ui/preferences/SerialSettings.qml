@@ -1,268 +1,173 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-
 import QtQuick          2.3
 import QtQuick.Controls 1.2
-import QtQuick.Dialogs  1.2
+import QtQuick.Layouts  1.2
 
-import QGroundControl                       1.0
-import QGroundControl.Controls              1.0
-import QGroundControl.ScreenTools           1.0
-import QGroundControl.Palette               1.0
+import QGroundControl               1.0
+import QGroundControl.Controls      1.0
+import QGroundControl.ScreenTools   1.0
+import QGroundControl.Palette       1.0
 
-Item {
-    id:     serialLinkSettings
-    width:  parent ? parent.width : 0
-    height: serialColumn.height
+ColumnLayout {
+    spacing: _rowSpacing
 
     function saveSettings() {
         // No Need
     }
 
-    Column {
-        id:         serialColumn
-        width:      serialLinkSettings.width
-        spacing:    ScreenTools.defaultFontPixelHeight / 2
-        QGCLabel {
-            id:     serialLabel
-            text:   qsTr("Serial Link Settings")
-        }
-        Rectangle {
-            height: 1
-            width:  serialLabel.width
-            color:  qgcPal.button
-        }
-        Item {
-            height: ScreenTools.defaultFontPixelHeight / 2
-            width:  parent.width
-        }
-        Row {
-            spacing:    ScreenTools.defaultFontPixelWidth
-            QGCLabel {
-                text:   qsTr("Serial Port:")
-                width:  _firstColumn
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            QGCLabel {
-                text:       qsTr("No serial ports available");
-                visible:    QGroundControl.linkManager.serialPortStrings.length == 0
-            }
+    GridLayout {
+        columns:        2
+        rowSpacing:     _rowSpacing
+        columnSpacing:  _colSpacing
 
-            QGCComboBox {
-                id:                     commPortCombo
-                anchors.verticalCenter: parent.verticalCenter
-                width:                  _secondColumn
-                visible:                QGroundControl.linkManager.serialPortStrings.length > 0
+        QGCLabel { text: qsTr("Serial Port") }
+        QGCComboBox {
+            id:                     commPortCombo
+            Layout.preferredWidth:  _secondColumnWidth
+            enabled:                QGroundControl.linkManager.serialPorts.length > 0
 
-                onActivated: {
-                    if (index != -1) {
-                        if (index >= QGroundControl.linkManager.serialPortStrings.length) {
-                            // This item was adding at the end, must use added text as name
-                            subEditConfig.portName = commPortCombo.textAt(index)
-                        } else {
-                            subEditConfig.portName = QGroundControl.linkManager.serialPorts[index]
-                        }
+            onActivated: {
+                if (index != -1) {
+                    if (index >= QGroundControl.linkManager.serialPortStrings.length) {
+                        // This item was adding at the end, must use added text as name
+                        subEditConfig.portName = commPortCombo.textAt(index)
+                    } else {
+                        subEditConfig.portName = QGroundControl.linkManager.serialPorts[index]
                     }
                 }
-                Component.onCompleted: {
-                    var index
-                    var serialPorts = [ ]
+            }
 
+            Component.onCompleted: {
+                var index = -1
+                var serialPorts = [ ]
+                if (QGroundControl.linkManager.serialPortStrings.length !== 0) {
                     for (var i=0; i<QGroundControl.linkManager.serialPortStrings.length; i++) {
                         serialPorts.push(QGroundControl.linkManager.serialPortStrings[i])
                     }
-
-                    if (subEditConfig != null) {
-                        if (subEditConfig.portDisplayName === "" && QGroundControl.linkManager.serialPorts.length > 0) {
-                            subEditConfig.portName = QGroundControl.linkManager.serialPorts[0]
-                        }
-                        index = serialPorts.indexOf(subEditConfig.portDisplayName)
-                        if (index === -1) {
-                            serialPorts.push(subEditConfig.portName)
-                            index = serialPorts.indexOf(subEditConfig.portName)
-                        }
-                    } else {
-                        index = 0
+                    if (subEditConfig.portDisplayName === "" && QGroundControl.linkManager.serialPorts.length > 0) {
+                        subEditConfig.portName = QGroundControl.linkManager.serialPorts[0]
                     }
-
-                    commPortCombo.model = serialPorts
-                    commPortCombo.currentIndex = index
-                }
-            }
-        }
-        Row {
-            spacing:    ScreenTools.defaultFontPixelWidth
-            QGCLabel {
-                text:   qsTr("Baud Rate:")
-                width:  _firstColumn
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            QGCComboBox {
-                id:             baudCombo
-                width:          _secondColumn
-                model:          QGroundControl.linkManager.serialBaudRates
-                anchors.verticalCenter: parent.verticalCenter
-                onActivated: {
-                    if (index != -1) {
-                        subEditConfig.baud = parseInt(QGroundControl.linkManager.serialBaudRates[index])
-                    }
-                }
-                Component.onCompleted: {
-                    var baud = "57600"
-                    if(subEditConfig != null) {
-                        baud = subEditConfig.baud.toString()
-                    }
-                    var index = baudCombo.find(baud)
+                    index = serialPorts.indexOf(subEditConfig.portDisplayName)
                     if (index === -1) {
-                        console.warn(qsTr("Baud rate name not in combo box"), baud)
-                    } else {
-                        baudCombo.currentIndex = index
+                        serialPorts.push(subEditConfig.portName)
+                        index = serialPorts.indexOf(subEditConfig.portName)
                     }
                 }
+                if (serialPorts.length === 0) {
+                    serialPorts = [ qsTr("None Available") ]
+                    index = 0
+                }
+                commPortCombo.model = serialPorts
+                commPortCombo.currentIndex = index
             }
         }
-        Item {
-            height: ScreenTools.defaultFontPixelHeight / 2
-            width:  parent.width
-        }
-        //-----------------------------------------------------------------
-        //-- Advanced Serial Settings
-        QGCCheckBox {
-            id:     showAdvanced
-            text:   qsTr("Show Advanced Serial Settings")
-        }
-        Item {
-            height: ScreenTools.defaultFontPixelHeight / 2
-            width:  parent.width
-        }
-        //-- Flow Control
-        QGCCheckBox {
-            text:       qsTr("Enable Flow Control")
-            checked:    subEditConfig ? subEditConfig.flowControl !== 0 : false
-            visible:    showAdvanced.checked
-            onCheckedChanged: {
-                if(subEditConfig) {
-                    subEditConfig.flowControl = checked ? 1 : 0
+
+        QGCLabel { text: qsTr("Baud Rate") }
+        QGCComboBox {
+            id:                     baudCombo
+            Layout.preferredWidth:  _secondColumnWidth
+            model:                  QGroundControl.linkManager.serialBaudRates
+
+            onActivated: {
+                if (index != -1) {
+                    subEditConfig.baud = parseInt(QGroundControl.linkManager.serialBaudRates[index])
                 }
             }
-        }
-        //-- Parity
-        Row {
-            spacing:    ScreenTools.defaultFontPixelWidth
-            visible:    showAdvanced.checked
-            QGCLabel {
-                text:   qsTr("Parity:")
-                width:  _firstColumn
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            QGCComboBox {
-                id:             parityCombo
-                width:          _firstColumn
-                model:          [qsTr("None"), qsTr("Even"), qsTr("Odd")]
-                anchors.verticalCenter: parent.verticalCenter
-                onActivated: {
-                    if (index != -1) {
-                        // Hard coded values from qserialport.h
-                        if(index == 0)
-                            subEditConfig.parity = 0
-                        else if(index == 1)
-                            subEditConfig.parity = 2
-                        else
-                            subEditConfig.parity = 3
-                    }
-                }
-                Component.onCompleted: {
-                    var index = 0
-                    if(subEditConfig != null) {
-                        index = subEditConfig.parity
-                    }
-                    if(index > 1) {
-                        index = index - 2
-                    }
-                    parityCombo.currentIndex = index
-                }
-            }
-        }
-        //-- Data Bits
-        Row {
-            spacing:    ScreenTools.defaultFontPixelWidth
-            visible:    showAdvanced.checked
-            QGCLabel {
-                text:   "Data Bits:"
-                width:  _firstColumn
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            QGCComboBox {
-                id:             dataCombo
-                width:          _firstColumn
-                model:          ["5", "6", "7", "8"]
-                anchors.verticalCenter: parent.verticalCenter
-                onActivated: {
-                    if (index != -1) {
-                        subEditConfig.dataBits = index + 5
-                    }
-                }
-                Component.onCompleted: {
-                    var index = 3
-                    if(subEditConfig != null) {
-                        index = subEditConfig.parity - 5
-                        if(index < 0)
-                            index = 3
-                    }
-                    dataCombo.currentIndex = index
-                }
-            }
-        }
-        //-- Stop Bits
-        Row {
-            spacing:    ScreenTools.defaultFontPixelWidth
-            visible:    showAdvanced.checked
-            QGCLabel {
-                text:   qsTr("Stop Bits:")
-                width:  _firstColumn
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            QGCComboBox {
-                id:             stopCombo
-                width:          _firstColumn
-                model:          ["1", "2"]
-                anchors.verticalCenter: parent.verticalCenter
-                onActivated: {
-                    if (index != -1) {
-                        subEditConfig.stopBits = index + 1
-                    }
-                }
-                Component.onCompleted: {
-                    var index = 0
-                    if(subEditConfig != null) {
-                        index = subEditConfig.stopBits - 1
-                        if(index < 0)
-                            index = 0
-                    }
-                    stopCombo.currentIndex = index
-                }
-            }
-        }
-        QGCCheckBox {
-            text:       "High Latency"
-            checked:    false
-            visible:    editConfig ? editConfig.highLatencyAllowed : false
-            onCheckedChanged: {
-                if(editConfig) {
-                    editConfig.highLatency = checked
-                }
-            }
+
             Component.onCompleted: {
-                if(editConfig)
-                    checked = editConfig.highLatency
+                var baud = "57600"
+                if(subEditConfig != null) {
+                    baud = subEditConfig.baud.toString()
+                }
+                var index = baudCombo.find(baud)
+                if (index === -1) {
+                    console.warn(qsTr("Baud rate name not in combo box"), baud)
+                } else {
+                    baudCombo.currentIndex = index
+                }
             }
+        }
+    }
+
+    QGCCheckBox {
+        id:         advancedSettings
+        text:       qsTr("Advanced Settings")
+        checked:    false
+    }
+
+    GridLayout {
+        columns:        2
+        rowSpacing:     _rowSpacing
+        columnSpacing:  _colSpacing
+        visible:        advancedSettings.checked
+
+        QGCCheckBox {
+            Layout.columnSpan:  2
+            text:               qsTr("Enable Flow Control")
+            checked:            subEditConfig.flowControl !== 0
+            onCheckedChanged:   subEditConfig.flowControl = checked ? 1 : 0
+        }
+
+        QGCLabel { text: qsTr("Parity") }
+        QGCComboBox {
+            Layout.preferredWidth:  _secondColumnWidth
+            model:                  [qsTr("None"), qsTr("Even"), qsTr("Odd")]
+
+            onActivated: {
+                // Hard coded values from qserialport.h
+                switch (index) {
+                case 0:
+                    subEditConfig.parity = 0
+                    break
+                case 1:
+                    subEditConfig.parity = 2
+                    break
+                case 2:
+                    subEditConfig.parity = 3
+                    break
+                }
+            }
+
+            Component.onCompleted: {
+                switch (subEditConfig.parity) {
+                case 0:
+                    currentIndex = 0
+                    break
+                case 2:
+                    currentIndex = 1
+                    break
+                case 3:
+                    currentIndex = 2
+                    break
+                default:
+                    console.warn("Unknown parity", subEditConfig.parity)
+                    break
+                }
+            }
+        }
+
+        QGCLabel { text: qsTr("Data Bits") }
+        QGCComboBox {
+            Layout.preferredWidth:  _secondColumnWidth
+            model:                  [ "5", "6", "7", "8" ]
+            currentIndex:           Math.max(Math.min(subEditConfig.dataBits - 5, 0), 3)
+            onActivated:            subEditConfig.dataBits = index + 5
+        }
+
+        QGCLabel { text: qsTr("Stop Bits") }
+        QGCComboBox {
+            Layout.preferredWidth:  _secondColumnWidth
+            model:                  [ "1", "2" ]
+            currentIndex:           Math.max(Math.min(subEditConfig.stopBits - 1, 0), 1)
+            onActivated:            subEditConfig.stopBits = index + 1
         }
     }
 }

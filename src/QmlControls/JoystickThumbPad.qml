@@ -1,69 +1,84 @@
-import QtQuick                  2.3
+import QtQuick                  2.12
 import QtQuick.Controls         1.2
 
+import QGroundControl               1.0
 import QGroundControl.Palette       1.0
 import QGroundControl.ScreenTools   1.0
 
 Item {
     id:             _joyRoot
 
-    property alias  lightColors:    mapPal.lightColors  ///< true: use light colors from QGCMapPalette for drawing
-    property real   xAxis:          0                   ///< Value range [-1,1], negative values left stick, positive values right stick
-    property real   yAxis:          0                   ///< Value range [-1,1], negative values up stick, positive values down stick
-    property bool   yAxisThrottle:  false               ///< true: yAxis used for throttle, range [1,0], positive value are stick up
-    property real   xPositionDelta: 0                   ///< Amount to move the control on x axis
-    property real   yPositionDelta: 0                   ///< Amount to move the control on y axis
+    property alias  lightColors:            mapPal.lightColors  ///< true: use light colors from QGCMapPalette for drawing
+    property real   xAxis:                  0                   ///< Value range [-1,1], negative values left stick, positive values right stick
+    property real   yAxis:                  0                   ///< Value range [-1,1], negative values down stick, positive values up stick
+    property bool   yAxisPositiveRangeOnly: false               ///< true: value range [0,1], false: value range [-1,1]
+    property bool   yAxisReCenter:          true                ///< true: snaps back to center on release, false: stays at current position on release
+    property real   xPositionDelta:         0                   ///< Amount to move the control on x axis
+    property real   yPositionDelta:         0                   ///< Amount to move the control on y axis
 
     property real   _centerXY:              width / 2
     property bool   _processTouchPoints:    false
-    property bool   _stickCenteredOnce:     false
+    property color  _fgColor:               QGroundControl.globalPalette.text
+    property color  _bgColor:               QGroundControl.globalPalette.window
+    property real   _hatWidth:              ScreenTools.defaultFontPixelHeight
+    property real   _hatWidthHalf:          _hatWidth / 2
+
     property real   stickPositionX:         _centerXY
-    property real   stickPositionY:         yAxisThrottle ? height : _centerXY
+    property real   stickPositionY:         yAxisReCenter ? _centerXY : height
 
     QGCMapPalette { id: mapPal }
 
-    onStickPositionXChanged: {
+    onWidthChanged:                     calculateXAxis()
+    onStickPositionXChanged:            calculateXAxis()
+    onHeightChanged:                    calculateYAxis()
+    onStickPositionYChanged:            calculateYAxis()
+    onYAxisPositiveRangeOnlyChanged:    calculateYAxis()
+
+    function calculateXAxis() {
+        if(!_joyRoot.visible) {
+            return;
+        }
         var xAxisTemp = stickPositionX / width
         xAxisTemp *= 2.0
         xAxisTemp -= 1.0
         xAxis = xAxisTemp
     }
 
-    onStickPositionYChanged: {
-        var yAxisTemp = stickPositionY / height
-        yAxisTemp *= 2.0
-        yAxisTemp -= 1.0
-        if (yAxisThrottle) {
-            yAxisTemp = ((yAxisTemp * -1.0) / 2.0) + 0.5
+    function calculateYAxis() {
+        if(!_joyRoot.visible) {
+            return;
         }
-        yAxis = yAxisTemp
+        var fullRange = yAxisPositiveRangeOnly ? 1 : 2
+        var pctUp = 1.0 - (stickPositionY / height)
+        var rangeUp = pctUp * fullRange
+        if (!yAxisPositiveRangeOnly) {
+            rangeUp -= 1
+        }
+        yAxis = rangeUp
     }
 
-    function reCenter()
-    {
+    function reCenter() {
         _processTouchPoints = false
 
         // Move control back to original position
         xPositionDelta = 0
         yPositionDelta = 0
 
-        // Center sticks
+        // Re-Center sticks as needed
         stickPositionX = _centerXY
-        if (!yAxisThrottle) {
+        if (yAxisReCenter) {
             stickPositionY = _centerXY
         }
     }
 
-    function thumbDown(touchPoints)
-    {
+    function thumbDown(touchPoints) {
         // Position the control around the initial thumb position
         xPositionDelta = touchPoints[0].x - _centerXY
-        if (yAxisThrottle) {
+        if (yAxisPositiveRangeOnly) {
             yPositionDelta = touchPoints[0].y - stickPositionY
         } else {
             yPositionDelta = touchPoints[0].y - _centerXY
         }
-
         // We need to wait until we move the control to the right position before we process touch points
         _processTouchPoints = true
     }
@@ -78,38 +93,100 @@ Item {
 
     Image {
         anchors.fill:       parent
-        source:             lightColors ? "/res/JoystickBezel.png" : "/res/JoystickBezelLight.png"
+        source:             "/res/JoystickBezelLight.png"
         mipmap:             true
         smooth:             true
     }
 
     Rectangle {
-        anchors.margins:    parent.width / 4
         anchors.fill:       parent
         radius:             width / 2
-        border.color:       mapPal.thumbJoystick
-        border.width:       2
-        color:              "transparent"
+        color:              _bgColor
+        opacity:            0.5
+
+        Rectangle {
+            anchors.margins:    parent.width / 4
+            anchors.fill:       parent
+            radius:             width / 2
+            border.color:       _fgColor
+            border.width:       2
+            color:              "transparent"
+        }
+
+        Rectangle {
+            anchors.fill:       parent
+            radius:             width / 2
+            border.color:       _fgColor
+            border.width:       2
+            color:              "transparent"
+        }
+    }
+
+    QGCColoredImage {
+        color:                      _fgColor
+        visible:                    yAxisPositiveRangeOnly
+        height:                     ScreenTools.defaultFontPixelHeight
+        width:                      height
+        sourceSize.height:          height
+        mipmap:                     true
+        fillMode:                   Image.PreserveAspectFit
+        source:                     "/res/clockwise-arrow.svg"
+        anchors.right:              parent.right
+        anchors.rightMargin:        ScreenTools.defaultFontPixelWidth
+        anchors.verticalCenter:     parent.verticalCenter
+    }
+
+    QGCColoredImage {
+        color:                      _fgColor
+        visible:                    yAxisPositiveRangeOnly
+        height:                     ScreenTools.defaultFontPixelHeight
+        width:                      height
+        sourceSize.height:          height
+        mipmap:                     true
+        fillMode:                   Image.PreserveAspectFit
+        source:                     "/res/counter-clockwise-arrow.svg"
+        anchors.left:               parent.left
+        anchors.leftMargin:         ScreenTools.defaultFontPixelWidth
+        anchors.verticalCenter:     parent.verticalCenter
+    }
+
+    QGCColoredImage {
+        color:                      _fgColor
+        visible:                    yAxisPositiveRangeOnly
+        height:                     ScreenTools.defaultFontPixelHeight
+        width:                      height
+        sourceSize.height:          height
+        mipmap:                     true
+        fillMode:                   Image.PreserveAspectFit
+        source:                     "/res/chevron-up.svg"
+        anchors.top:                parent.top
+        anchors.topMargin:          ScreenTools.defaultFontPixelWidth
+        anchors.horizontalCenter:   parent.horizontalCenter
+    }
+
+    QGCColoredImage {
+        color:                      _fgColor
+        visible:                    yAxisPositiveRangeOnly
+        height:                     ScreenTools.defaultFontPixelHeight
+        width:                      height
+        sourceSize.height:          height
+        mipmap:                     true
+        fillMode:                   Image.PreserveAspectFit
+        source:                     "/res/chevron-down.svg"
+        anchors.bottom:             parent.bottom
+        anchors.bottomMargin:       ScreenTools.defaultFontPixelWidth
+        anchors.horizontalCenter:   parent.horizontalCenter
     }
 
     Rectangle {
-        anchors.fill:       parent
-        radius:             width / 2
-        border.color:       mapPal.thumbJoystick
-        border.width:       2
-        color:              "transparent"
-    }
-
-    Rectangle {
-        width:  hatWidth
-        height: hatWidth
-        radius: hatWidthHalf
-        color:  mapPal.thumbJoystick
-        x:      stickPositionX - hatWidthHalf
-        y:      stickPositionY - hatWidthHalf
-
-        readonly property real hatWidth:        ScreenTools.defaultFontPixelHeight
-        readonly property real hatWidthHalf:    ScreenTools.defaultFontPixelHeight / 2
+        width:          _hatWidth
+        height:         _hatWidth
+        radius:         _hatWidthHalf
+        border.color:   _fgColor
+        border.width:   1
+        color:          Qt.rgba(_fgColor.r, _fgColor.g, _fgColor.b, 0.5)
+        x:              stickPositionX - _hatWidthHalf
+        y:              stickPositionY - _hatWidthHalf
     }
 
     Connections {
@@ -128,12 +205,12 @@ Item {
     }
 
     MultiPointTouchArea {
-        anchors.fill:       parent
-        minimumTouchPoints: 1
-        maximumTouchPoints: 1
-        touchPoints:        [ TouchPoint { id: touchPoint } ]
-
-        onPressed:  _joyRoot.thumbDown(touchPoints)
-        onReleased: _joyRoot.reCenter()
+        anchors.fill:           parent
+        anchors.bottomMargin:   yAxisReCenter ? 0 : -_hatWidthHalf
+        minimumTouchPoints:     1
+        maximumTouchPoints:     1
+        touchPoints:            [ TouchPoint { id: touchPoint } ]
+        onPressed:              _joyRoot.thumbDown(touchPoints)
+        onReleased:             _joyRoot.reCenter()
     }
 }

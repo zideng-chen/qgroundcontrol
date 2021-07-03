@@ -28,7 +28,6 @@ QGCFlickable {
             anchors.left:       parent.left
             anchors.top:        parent.top
             text:               qsTr("Rally Points")
-            color:              "black"
         }
 
         Rectangle {
@@ -37,7 +36,7 @@ QGCFlickable {
             anchors.left:       parent.left
             anchors.right:      parent.right
             anchors.top:        editorLabel.bottom
-            height:             helpLabel.height + helpLabel.height + (_margin * 2)
+            height:             infoLabel.height + (_margin * 2)
             color:              qgcPal.windowShadeDark
             radius:             _radius
 
@@ -52,6 +51,7 @@ QGCFlickable {
                 text:               qsTr("Rally Points provide alternate landing points when performing a Return to Launch (RTL).")
             }
 
+            /*
             QGCLabel {
                 id:                 helpLabel
                 anchors.margins:    _margin
@@ -63,6 +63,7 @@ QGCFlickable {
                                         qsTr("Click in the map to add new rally points.") :
                                         qsTr("This vehicle does not support Rally Points.")
             }
+            */
         }
     }
 }

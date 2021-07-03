@@ -1,18 +1,13 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-
-/// @file
-///     @author Don Gagne <don@thegagnes.com>
-
-#ifndef FACTSYSTEM_H
-#define FACTSYSTEM_H
+#pragma once
 
 #include "Fact.h"
 #include "FactMetaData.h"
@@ -26,7 +21,6 @@ class FactSystem : public QGCTool
     Q_OBJECT
     
 public:
-    /// All access to FactSystem is through FactSystem::instance, so constructor is private
     FactSystem(QGCApplication* app, QGCToolbox* toolbox);
 
     // Override from QGCTool
@@ -41,5 +35,3 @@ public:
 private:
     static const char* _factSystemQmlUri;   ///< URI for FactSystem QML imports
 };
-
-#endif

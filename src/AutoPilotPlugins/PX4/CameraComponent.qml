@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
@@ -31,7 +31,7 @@ SetupPage {
             width:  Math.max(availableWidth, innerColumn.width)
             height: innerColumn.height
 
-            FactPanelController { id: controller; factPanel: cameraPage.viewPanel }
+            FactPanelController { id: controller; }
 
             property real _margins:         ScreenTools.defaultFontPixelHeight
             property real _editFieldWidth:  ScreenTools.defaultFontPixelWidth * 25
@@ -261,10 +261,8 @@ SetupPage {
                                 Item { height: 1; width: _margins; }
                                 Column {
                                     spacing:            _margins * 0.5
-                                    ExclusiveGroup { id: polarityGroup }
                                     QGCRadioButton {
                                         checked:        _camTriggerPol && _camTriggerPol.value === 0
-                                        exclusiveGroup: polarityGroup
                                         text:           "Low (0V)"
                                         onClicked: {
                                             if(_camTriggerPol) {
@@ -274,7 +272,6 @@ SetupPage {
                                     }
                                     QGCRadioButton {
                                         checked:        _camTriggerPol && _camTriggerPol.value > 0
-                                        exclusiveGroup: polarityGroup
                                         text:           "High (3.3V)"
                                         onClicked: {
                                             if(_camTriggerPol) {
@@ -303,17 +300,6 @@ SetupPage {
                         }
                     }
                 } // QGCGroupBox - Hardware Settings
-
-                QGCGroupBox {
-                    title:              qsTr("Camera Test")
-                    Layout.fillWidth:   true
-
-                    QGCButton {
-                        anchors.horizontalCenter:   parent.horizontalCenter
-                        text:                       qsTr("Trigger Camera")
-                        onClicked:                  controller.vehicle.triggerCamera()
-                    }
-                }
             }
         }
     }

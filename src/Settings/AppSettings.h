@@ -1,54 +1,81 @@
-/****************************************************************************
+/***************_qgcTranslatorSourceCode***********************************************
  *
- *   (c) 2009-2016 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
+ * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
  *
  * QGroundControl is licensed according to the terms in the file
  * COPYING.md in the root of the source code directory.
  *
  ****************************************************************************/
 
-#ifndef AppSettings_H
-#define AppSettings_H
+/// @file
+/// @brief Application Settings
+
+#pragma once
+#include <QTranslator>
 
 #include "SettingsGroup.h"
 #include "QGCMAVLink.h"
 
+/// Application Settings
 class AppSettings : public SettingsGroup
 {
     Q_OBJECT
-    
-public:
-    AppSettings(QObject* parent = NULL);
 
-    Q_PROPERTY(Fact* offlineEditingFirmwareType         READ offlineEditingFirmwareType         CONSTANT)
-    Q_PROPERTY(Fact* offlineEditingVehicleType          READ offlineEditingVehicleType          CONSTANT)
-    Q_PROPERTY(Fact* offlineEditingCruiseSpeed          READ offlineEditingCruiseSpeed          CONSTANT)
-    Q_PROPERTY(Fact* offlineEditingHoverSpeed           READ offlineEditingHoverSpeed           CONSTANT)
-    Q_PROPERTY(Fact* offlineEditingAscentSpeed          READ offlineEditingAscentSpeed          CONSTANT)
-    Q_PROPERTY(Fact* offlineEditingDescentSpeed         READ offlineEditingDescentSpeed         CONSTANT)
-    Q_PROPERTY(Fact* batteryPercentRemainingAnnounce    READ batteryPercentRemainingAnnounce    CONSTANT)
-    Q_PROPERTY(Fact* defaultMissionItemAltitude         READ defaultMissionItemAltitude         CONSTANT)
-    Q_PROPERTY(Fact* telemetrySave                      READ telemetrySave                      CONSTANT)
-    Q_PROPERTY(Fact* telemetrySaveNotArmed              READ telemetrySaveNotArmed              CONSTANT)
-    Q_PROPERTY(Fact* audioMuted                         READ audioMuted                         CONSTANT)
-    Q_PROPERTY(Fact* virtualJoystick                    READ virtualJoystick                    CONSTANT)
-    Q_PROPERTY(Fact* appFontPointSize                   READ appFontPointSize                   CONSTANT)
-    Q_PROPERTY(Fact* indoorPalette                      READ indoorPalette                      CONSTANT)
-    Q_PROPERTY(Fact* showLargeCompass                   READ showLargeCompass                   CONSTANT)
-    Q_PROPERTY(Fact* savePath                           READ savePath                           CONSTANT)
-    Q_PROPERTY(Fact* autoLoadMissions                   READ autoLoadMissions                   CONSTANT)
-    Q_PROPERTY(Fact* useChecklist                       READ useChecklist                       CONSTANT)
-    Q_PROPERTY(Fact* mapboxToken                        READ mapboxToken                        CONSTANT)
-    Q_PROPERTY(Fact* esriToken                          READ esriToken                          CONSTANT)
-    Q_PROPERTY(Fact* defaultFirmwareType                READ defaultFirmwareType                CONSTANT)
-    Q_PROPERTY(Fact* gstDebug                           READ gstDebug                           CONSTANT)
-    Q_PROPERTY(Fact* followTarget                       READ followTarget                       CONSTANT)
+public:
+    AppSettings(QObject* parent = nullptr);
+
+    DEFINE_SETTING_NAME_GROUP()
+
+    DEFINE_SETTINGFACT(offlineEditingFirmwareClass)
+    DEFINE_SETTINGFACT(offlineEditingVehicleClass)
+    DEFINE_SETTINGFACT(offlineEditingCruiseSpeed)
+    DEFINE_SETTINGFACT(offlineEditingHoverSpeed)
+    DEFINE_SETTINGFACT(offlineEditingAscentSpeed)
+    DEFINE_SETTINGFACT(offlineEditingDescentSpeed)
+    DEFINE_SETTINGFACT(batteryPercentRemainingAnnounce) // Important: This is only used to calculate battery swaps
+    DEFINE_SETTINGFACT(defaultMissionItemAltitude)
+    DEFINE_SETTINGFACT(telemetrySave)
+    DEFINE_SETTINGFACT(telemetrySaveNotArmed)
+    DEFINE_SETTINGFACT(audioMuted)
+    DEFINE_SETTINGFACT(checkInternet)
+    DEFINE_SETTINGFACT(virtualJoystick)
+    DEFINE_SETTINGFACT(virtualJoystickAutoCenterThrottle)
+    DEFINE_SETTINGFACT(appFontPointSize)
+    DEFINE_SETTINGFACT(indoorPalette)
+    DEFINE_SETTINGFACT(showLargeCompass)
+    DEFINE_SETTINGFACT(savePath)
+    DEFINE_SETTINGFACT(useChecklist)
+    DEFINE_SETTINGFACT(enforceChecklist)
+    DEFINE_SETTINGFACT(mapboxToken)
+    DEFINE_SETTINGFACT(mapboxAccount)
+    DEFINE_SETTINGFACT(mapboxStyle)
+    DEFINE_SETTINGFACT(esriToken)
+    DEFINE_SETTINGFACT(customURL)
+    DEFINE_SETTINGFACT(vworldToken)
+    DEFINE_SETTINGFACT(defaultFirmwareType)
+    DEFINE_SETTINGFACT(gstDebugLevel)
+    DEFINE_SETTINGFACT(followTarget)
+    DEFINE_SETTINGFACT(enableTaisync)
+    DEFINE_SETTINGFACT(enableTaisyncVideo)
+    DEFINE_SETTINGFACT(enableMicrohard)
+    DEFINE_SETTINGFACT(language)
+    DEFINE_SETTINGFACT(disableAllPersistence)
+    DEFINE_SETTINGFACT(usePairing)
+    DEFINE_SETTINGFACT(saveCsvTelemetry)
+    DEFINE_SETTINGFACT(firstRunPromptIdsShown)
+    DEFINE_SETTINGFACT(forwardMavlink)
+    DEFINE_SETTINGFACT(forwardMavlinkHostName)
+
+
+    // Although this is a global setting it only affects ArduPilot vehicle since PX4 automatically starts the stream from the vehicle side
+    DEFINE_SETTINGFACT(apmStartMavlinkStreams)
 
     Q_PROPERTY(QString missionSavePath      READ missionSavePath    NOTIFY savePathsChanged)
     Q_PROPERTY(QString parameterSavePath    READ parameterSavePath  NOTIFY savePathsChanged)
     Q_PROPERTY(QString telemetrySavePath    READ telemetrySavePath  NOTIFY savePathsChanged)
     Q_PROPERTY(QString logSavePath          READ logSavePath        NOTIFY savePathsChanged)
     Q_PROPERTY(QString videoSavePath        READ videoSavePath      NOTIFY savePathsChanged)
+    Q_PROPERTY(QString photoSavePath        READ photoSavePath      NOTIFY savePathsChanged)
     Q_PROPERTY(QString crashSavePath        READ crashSavePath      NOTIFY savePathsChanged)
 
     Q_PROPERTY(QString planFileExtension        MEMBER planFileExtension        CONSTANT)
@@ -57,67 +84,21 @@ public:
     Q_PROPERTY(QString parameterFileExtension   MEMBER parameterFileExtension   CONSTANT)
     Q_PROPERTY(QString telemetryFileExtension   MEMBER telemetryFileExtension   CONSTANT)
     Q_PROPERTY(QString kmlFileExtension         MEMBER kmlFileExtension         CONSTANT)
+    Q_PROPERTY(QString shpFileExtension         MEMBER shpFileExtension         CONSTANT)
     Q_PROPERTY(QString logFileExtension         MEMBER logFileExtension         CONSTANT)
 
-    Fact* offlineEditingFirmwareType        (void);
-    Fact* offlineEditingVehicleType         (void);
-    Fact* offlineEditingCruiseSpeed         (void);
-    Fact* offlineEditingHoverSpeed          (void);
-    Fact* offlineEditingAscentSpeed         (void);
-    Fact* offlineEditingDescentSpeed        (void);
-    Fact* batteryPercentRemainingAnnounce   (void);
-    Fact* defaultMissionItemAltitude        (void);
-    Fact* telemetrySave                     (void);
-    Fact* telemetrySaveNotArmed             (void);
-    Fact* audioMuted                        (void);
-    Fact* virtualJoystick                   (void);
-    Fact* appFontPointSize                  (void);
-    Fact* indoorPalette                     (void);
-    Fact* showLargeCompass                  (void);
-    Fact* savePath                          (void);
-    Fact* autoLoadMissions                  (void);
-    Fact* useChecklist                      (void);
-    Fact* mapboxToken                       (void);
-    Fact* esriToken                         (void);
-    Fact* defaultFirmwareType               (void);
-    Fact* gstDebug                          (void);
-    Fact* followTarget                      (void);
+    QString missionSavePath     ();
+    QString parameterSavePath   ();
+    QString telemetrySavePath   ();
+    QString logSavePath         ();
+    QString videoSavePath       ();
+    QString photoSavePath       ();
+    QString crashSavePath       ();
 
-    QString missionSavePath     (void);
-    QString parameterSavePath   (void);
-    QString telemetrySavePath   (void);
-    QString logSavePath         (void);
-    QString videoSavePath         (void);
-    QString crashSavePath         (void);
-
-    static MAV_AUTOPILOT offlineEditingFirmwareTypeFromFirmwareType(MAV_AUTOPILOT firmwareType);
-    static MAV_TYPE offlineEditingVehicleTypeFromVehicleType(MAV_TYPE vehicleType);
-
-    static const char* appSettingsGroupName;
-
-    static const char* offlineEditingFirmwareTypeSettingsName;
-    static const char* offlineEditingVehicleTypeSettingsName;
-    static const char* offlineEditingCruiseSpeedSettingsName;
-    static const char* offlineEditingHoverSpeedSettingsName;
-    static const char* offlineEditingAscentSpeedSettingsName;
-    static const char* offlineEditingDescentSpeedSettingsName;
-    static const char* batteryPercentRemainingAnnounceSettingsName;
-    static const char* defaultMissionItemAltitudeSettingsName;
-    static const char* telemetrySaveName;
-    static const char* telemetrySaveNotArmedName;
-    static const char* audioMutedName;
-    static const char* virtualJoystickName;
-    static const char* appFontPointSizeName;
-    static const char* indoorPaletteName;
-    static const char* showLargeCompassName;
-    static const char* savePathName;
-    static const char* autoLoadMissionsName;
-    static const char* useChecklistName;
-    static const char* mapboxTokenName;
-    static const char* esriTokenName;
-    static const char* defaultFirmwareTypeName;
-    static const char* gstDebugName;
-    static const char* followTargetName;
+    // Helper methods for working with firstRunPromptIds QVariant settings string list
+    static QList<int> firstRunPromptsIdsVariantToList   (const QVariant& firstRunPromptIds);
+    static QVariant   firstRunPromptsIdsListToVariant   (const QList<int>& rgIds);
+    Q_INVOKABLE void  firstRunPromptIdsMarkIdAsShown    (int id);
 
     // Application wide file extensions
     static const char* parameterFileExtension;
@@ -128,6 +109,7 @@ public:
     static const char* rallyPointFileExtension;
     static const char* telemetryFileExtension;
     static const char* kmlFileExtension;
+    static const char* shpFileExtension;
     static const char* logFileExtension;
 
     // Child directories of savePath for specific file types
@@ -136,39 +118,20 @@ public:
     static const char* missionDirectory;
     static const char* logDirectory;
     static const char* videoDirectory;
+    static const char* photoDirectory;
     static const char* crashDirectory;
 
+    // Returns the current language setting bypassing the standard SettingsGroup path. This should only be used
+    // by QGCApplication::setLanguage to query the language setting as early in the boot process as possible.
+    // Specfically prior to any JSON files being loaded such that JSON file can be translated. Also since this
+    // is a one-off mechanism custom build overrides for language are not currently supported.
+    static int _languageID(void);
+
 signals:
-    void savePathsChanged(void);
+    void savePathsChanged();
 
 private slots:
-    void _indoorPaletteChanged(void);
-    void _checkSavePathDirectories(void);
-
-private:
-    SettingsFact* _offlineEditingFirmwareTypeFact;
-    SettingsFact* _offlineEditingVehicleTypeFact;
-    SettingsFact* _offlineEditingCruiseSpeedFact;
-    SettingsFact* _offlineEditingHoverSpeedFact;
-    SettingsFact* _offlineEditingAscentSpeedFact;
-    SettingsFact* _offlineEditingDescentSpeedFact;
-    SettingsFact* _batteryPercentRemainingAnnounceFact;
-    SettingsFact* _defaultMissionItemAltitudeFact;
-    SettingsFact* _telemetrySaveFact;
-    SettingsFact* _telemetrySaveNotArmedFact;
-    SettingsFact* _audioMutedFact;
-    SettingsFact* _virtualJoystickFact;
-    SettingsFact* _appFontPointSizeFact;
-    SettingsFact* _indoorPaletteFact;
-    SettingsFact* _showLargeCompassFact;
-    SettingsFact* _savePathFact;
-    SettingsFact* _autoLoadMissionsFact;
-    SettingsFact* _useChecklistFact;
-    SettingsFact* _mapboxTokenFact;
-    SettingsFact* _esriTokenFact;
-    SettingsFact* _defaultFirmwareTypeFact;
-    SettingsFact* _gstDebugFact;
-    SettingsFact* _followTargetFact;
+    void _indoorPaletteChanged();
+    void _checkSavePathDirectories();
+    void _languageChanged();
 };
-
-#endif
